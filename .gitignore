@@ -19,5 +19,11 @@ dist/
 # Logs
 *.log
 
+# Testing
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+
 # OS files
 .DS_Store

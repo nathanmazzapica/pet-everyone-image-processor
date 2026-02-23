@@ -40,7 +40,7 @@ job.state -> DONE
 Scenario B: No output file exists / output is corrupted
 job.state -> QUEUED
 
-## State Machine
+## Job States
 
 A job can have the following states:
 
@@ -53,6 +53,23 @@ A job can have the following states:
 6. REJECTED                 A job in the REJECTED state was flagged by moderation.
 
 Jobs will track when they were locked. If it has been locked for too long it will be sent back to the queue
+
+## Job Dataclass
+
+The following fields will be required for the service to work:
+
+job_id
+job_status
+job_src_url
+job_output_url
+job_attempt_count
+job_last_locked
+
+The following fields will be good for observability, but might not be required
+
+job_error *(I'm not sure if this should be required for service to work, or if a flag to retry would be better?)*
+job_duration
+
 
 ## Failure Recovery
 
