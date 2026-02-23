@@ -136,3 +136,8 @@ Another (much smaller) worker coroutine could poll the DB for 'PENDING' jobs and
 or mark it rejected. Likely sending a notification back to the main server process too to inform the user.
 
 > How do we send notifications back to the user?
+
+## Security Considerations
+
+Should only accept API requests from the main server process. I think this can be achieved by setting up UFW
+to only allow incoming HTTP from a specified IP but need to research further
