@@ -29,6 +29,8 @@ The service will be split into layers:
 1. API inbound adapter
 2. Service
 3. Repository
+4. Models
+5. Storage
 
 Once an image is processed it is stored in S3, will need to get this URL back to the main server binary
 
