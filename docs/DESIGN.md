@@ -123,6 +123,10 @@ for job in db.query(where status == PROCESSING)
         job.state = done
 ```
 
+**Scenario D**: Storage Failure
+
+> What do we do if there is no more space on disk prior to S3 migration? OR if S3 is down?
+
 
 ## Other Considerations
 
