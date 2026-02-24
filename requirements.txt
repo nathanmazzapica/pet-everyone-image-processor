@@ -1,3 +1,6 @@
 withoutbg
 pydantic
 pytest
+pytest-mock
+pyvips
+wand
