@@ -1,12 +1,34 @@
 import sqlite3
 
 from typing import Any, List, Optional
+
+from src.repository.exceptions import DatabaseNotInitialized
 from src.models.job import Job, JobStatus
 
 class JobRepository():
 
     def __init__(self, conn: sqlite3.Connection):
         self.conn = conn
+        self.__ensure_initialized()
+
+    def __ensure_initialized(self, schema_path: str = "schema.sql") -> None:
+        with self.conn:
+            res = self.conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='job'"
+            )
+            if res.fetchone() is not None:
+                return
+
+        try:
+            with open(schema_path, "r", encoding="utf-8") as schema_file:
+                schema_sql = schema_file.read()
+        except FileNotFoundError as exc:
+            raise DatabaseNotInitialized(
+                f"Database is missing schema and '{schema_path}' was not found."
+            ) from exc
+
+        with self.conn:
+            self.conn.executescript(schema_sql)
 
     def create(self, input_url: str) -> int | None:
         """creates a job in the database and returns its id"""
@@ -129,6 +151,14 @@ class JobRepository():
             res = self.conn.execute(
                 "UPDATE job SET job_attempt_count=(?) WHERE job_id=(?)",
                 (attempt_count, job_id),
+            )
+            return res.rowcount > 0
+
+    def update_output_url(self, job_id: int, output_url: str | None) -> bool:
+        with self.conn:
+            res = self.conn.execute(
+                "UPDATE job SET output_url=(?) WHERE job_id=(?)",
+                (output_url, job_id),
             )
             return res.rowcount > 0
 
