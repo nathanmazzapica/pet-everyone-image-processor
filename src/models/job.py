@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from typing import Mapping, Optional, Any
-from status import JobStatus
+from src.models.status import JobStatus
 
 @dataclass
 class Job:
