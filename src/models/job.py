@@ -7,6 +7,7 @@ class Job:
     id: int
     status: JobStatus
     input_url: str
+    proc_url: Optional[str]
     output_url: Optional[str]
     attempt_count: int
     last_locked: Optional[float]
@@ -19,6 +20,7 @@ class Job:
                 id=row["job_id"],
                 status=JobStatus(row["job_status"]),
                 input_url=row["input_url"],
+                proc_url=row["proc_url"],
                 output_url=row["output_url"],
                 attempt_count=row["attempt_count"],
                 last_locked=row["last_locked"],
@@ -31,6 +33,7 @@ class Job:
                 "id": self.id,
                 "status": self.status,
                 "input_url": self.input_url,
+                "proc_url": self.proc_url,
                 "output_url": self.output_url,
                 "attempt_count": self.attempt_count,
                 "last_locked": self.last_locked,

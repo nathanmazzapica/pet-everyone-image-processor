@@ -12,6 +12,7 @@ CREATE TABLE job (
     )
   ),
   input_url TEXT NOT NULL,
+  proc_url TEXT,
   output_url TEXT,
   attempt_count INTEGER NOT NULL DEFAULT 0,
   last_locked REAL,

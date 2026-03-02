@@ -63,6 +63,7 @@ The following fields will be required for the service to work:
 job_id
 job_status
 job_src_url
+job_proc_url *(local filepath for any temporary files generated in processing)*
 job_output_url
 job_attempt_count
 job_last_locked
