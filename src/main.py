@@ -3,6 +3,8 @@ import os
 import sys
 import sqlite3
 
+from PIL.Image import MIME
+
 from src.repository.repository import JobRepository
 from src.service import background_remover
 from src.storage.storage import LocalStorage
