@@ -1,5 +1,7 @@
 withoutbg
 pydantic
+fastapi
+uvicorn
 pytest
 pytest-mock
 pyvips
