@@ -1,5 +1,6 @@
 import sqlite3
 
+import datetime
 from typing import Any, List, Optional
 
 from src.repository.exceptions import DatabaseNotInitialized
@@ -148,6 +149,14 @@ class JobRepository():
                 "UPDATE job SET job_status=(?) WHERE job_id=(?)",
                 (status.value, job_id),
             )
+            return res.rowcount > 0
+
+    def lock_job(self, job_id: int) -> bool:
+        with self.conn:
+            res = self.conn.execute(
+                "UPDATE job SET job_last_locked=(?), job_status=(?) WHERE job_status=(?) AND job_id=(?)",
+                (datetime.datetime.now(), JobStatus.PROCESSING.value, JobStatus.QUEUED.value, job_id),
+                    )
             return res.rowcount > 0
 
     def update_last_locked(self, job_id: int, last_locked: float | None) -> bool:
