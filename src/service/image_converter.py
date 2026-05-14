@@ -2,12 +2,14 @@
 The image converter service handles converting input images and resizing them as a pre-processing step to background removal
 """
 
+from PIL import Image
 from src.models.job import Job
 from src.repository.repository import JobRepository
 from src.models.image_format import ImageFormat
 from src.service.conversion_exceptions import InvalidImageFormatError
 from src.service.exceptions import JobFailedError
 from src.storage.storage import Storage
+import pyvips
 
 class ImageConverter:
     def __init__(self, repository: JobRepository, storage: Storage) -> None:
@@ -17,6 +19,11 @@ class ImageConverter:
         pass
     
     def _get_mime_type(self, job: Job) -> ImageFormat:
+        """Gets the mime type of an image
+        
+            Raises:
+                InvalidImageFormatError if file format is not a whitelisted image.
+        """
         try:
             with open(job.input_url, "rb") as file:
                 header = file.read(12)
@@ -45,7 +52,28 @@ class ImageConverter:
     def __convert_to_webp(self, job: Job):
         raise NotImplementedError
 
+    def __verify_image(self, job: Job) -> None:
+        """
+            Verifies a file is actually an image
+
+            Raises:
+                JobFailedError if an image cannot be verified
+        """
+
+        try:
+            img: pyvips.Image = pyvips.Image.new_from_buffer(self.storage.open_image(job), "") #pyright: ignore [reportAssignmentType]
+            img.stats() 
+        except:
+            pass
+
     def convert(self, job: Job):
         if not self.storage.exists(job):
             raise JobFailedError(f"Image does not exists at {job.input_url}")
+
+        img_format = self._get_mime_type(job)
+
+        self.__verify_image(job)
+
+        
+
         raise NotImplementedError

@@ -1,5 +1,6 @@
 import sqlite3
 
+import datetime
 from typing import Any, List, Optional
 
 from src.repository.exceptions import DatabaseNotInitialized
@@ -9,6 +10,7 @@ class JobRepository():
 
     def __init__(self, conn: sqlite3.Connection):
         self.conn = conn
+        self.conn.row_factory = sqlite3.Row
         self.__ensure_initialized()
 
     def __ensure_initialized(self, schema_path: str = "schema.sql") -> None:
@@ -43,6 +45,17 @@ class JobRepository():
             if row is None:
                 return None
 
+            return Job.from_row(row)
+
+    def get_next_in_queue(self) -> Job | None:
+        with self.conn:
+            res = self.conn.execute(
+                    "SELECT * FROM job WHERE job_status=(?) ORDER BY created_at LIMIT 1",
+                    ((JobStatus.QUEUED.value,))
+                    )
+            row = res.fetchone()
+            if row is None:
+                return None
             return Job.from_row(row)
 
     def __get_field(self, job_id: int, column: str) -> Any | None:
@@ -136,6 +149,14 @@ class JobRepository():
                 "UPDATE job SET job_status=(?) WHERE job_id=(?)",
                 (status.value, job_id),
             )
+            return res.rowcount > 0
+
+    def lock_job(self, job_id: int) -> bool:
+        with self.conn:
+            res = self.conn.execute(
+                "UPDATE job SET job_last_locked=(?), job_status=(?) WHERE job_status=(?) AND job_id=(?)",
+                (datetime.datetime.now(), JobStatus.PROCESSING.value, JobStatus.QUEUED.value, job_id),
+                    )
             return res.rowcount > 0
 
     def update_last_locked(self, job_id: int, last_locked: float | None) -> bool:

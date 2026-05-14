@@ -13,8 +13,7 @@ def converter(mocker):
 
 
 def _make_job(path):
-    return Job(1, JobStatus.QUEUED, str(path), None, 0, None, 0, 0)
-
+    return Job(1, JobStatus.QUEUED, str(path), None, None, 0, None, 0, 0)
 
 @pytest.mark.parametrize(
     "header,expected",
@@ -52,3 +51,6 @@ def test_get_mime_type_raises_for_invalid_or_video_heif(tmp_path, converter, hea
 
     with pytest.raises(InvalidImageFormatError):
         converter._get_mime_type(job)
+
+def test_convert():
+    pass

@@ -18,9 +18,10 @@ This service will handle background removal for user uploaded images:
 convert from HEIC (if needed) -> resize -> removeBG -> convert to WebP
 
 Endpoints:
-- POST api/enqueue           enqueues a job (creates database entry)
-- GET  api/status/{job_id}   returns the status of a job
-- GET  api/ping              returns health status (is online, jobs in queue)
+- POST `/upload`           enqueues a job (creates database entry)
+- GET  `/status/{image_id}`   returns the status of a job
+- GET `/subscribe/image_id`
+- GET  `/ping`              returns health status (is online, jobs in queue)
 
 Jobs will be stored in a SQLite DB for now. I am choosing a persistent DB over an in-memory queue to prevent total queue loss if the process crashes.
 
@@ -67,6 +68,8 @@ job_proc_url *(local filepath for any temporary files generated in processing)*
 job_output_url
 job_attempt_count
 job_last_locked
+job_pet_id *(need to track associated pet)*
+job_user_id
 
 The following fields will be good for observability, but might not be required
 
