@@ -9,6 +9,7 @@ class JobRepository():
 
     def __init__(self, conn: sqlite3.Connection):
         self.conn = conn
+        self.conn.row_factory = sqlite3.Row
         self.__ensure_initialized()
 
     def __ensure_initialized(self, schema_path: str = "schema.sql") -> None:
@@ -43,6 +44,17 @@ class JobRepository():
             if row is None:
                 return None
 
+            return Job.from_row(row)
+
+    def get_next_in_queue(self) -> Job | None:
+        with self.conn:
+            res = self.conn.execute(
+                    "SELECT * FROM job WHERE job_status=(?) ORDER BY created_at LIMIT 1",
+                    ((JobStatus.QUEUED.value,))
+                    )
+            row = res.fetchone()
+            if row is None:
+                return None
             return Job.from_row(row)
 
     def __get_field(self, job_id: int, column: str) -> Any | None:
