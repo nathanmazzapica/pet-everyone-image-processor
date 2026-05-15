@@ -1,9 +1,8 @@
 """
 The image converter service handles converting input images and resizing them as a pre-processing step to background removal
 """
+from enum import Enum
 
-from PIL import Image
-from src.models.job import Job
 from src.repository.repository import JobRepository
 from src.models.image_format import ImageFormat
 from src.service.conversion_exceptions import InvalidImageFormatError
@@ -11,21 +10,36 @@ from src.service.exceptions import JobFailedError
 from src.storage.storage import Storage
 import pyvips
 
+class AspectRatio(Enum):
+    SQUARE = 1
+    WIDE = 2
+    TALL = 3
+
+
+def get_aspect_ratio(img: pyvips.Image) -> AspectRatio:
+    raw = img.width / img.height
+    if raw > 1:
+        return AspectRatio.WIDE
+    if raw == 1:
+        return AspectRatio.SQUARE
+    return AspectRatio.TALL
+
+
 class ImageConverter:
     def __init__(self, repository: JobRepository, storage: Storage) -> None:
         self.repository = repository
         self.storage = storage
         # initialize libvips as needed
         pass
-    
-    def _get_mime_type(self, job: Job) -> ImageFormat:
-        """Gets the mime type of an image
-        
+
+    def _get_mime_type(self, filepath: str) -> ImageFormat:
+        """Gets the mime type of image
+
             Raises:
                 InvalidImageFormatError if file format is not a whitelisted image.
         """
         try:
-            with open(job.input_url, "rb") as file:
+            with open(filepath, "rb") as file:
                 header = file.read(12)
         except OSError as exc:
             raise InvalidImageFormatError from exc
@@ -46,13 +60,32 @@ class ImageConverter:
 
         raise InvalidImageFormatError
 
-    def __resize_image(self, job: Job):
-        raise NotImplementedError
+    def __resize_image(self, img: pyvips.Image):
+        aspect_ratio = get_aspect_ratio(img)
 
-    def __convert_to_webp(self, job: Job):
-        raise NotImplementedError
+        if aspect_ratio == AspectRatio.SQUARE:
+            return img.thumbnail_image(1024, height=1024)
+        if aspect_ratio == AspectRatio.WIDE:
+            return img.thumbnail_image(1280, height=720)
+        if aspect_ratio == AspectRatio.TALL:
+            return img.thumbnail_image(720, height=1280)
 
-    def __verify_image(self, job: Job) -> None:
+        raise ValueError("Invalid aspect ratio")
+
+
+    def __convert_to_webp(self, img: pyvips.Image) -> None:
+        img.webpsave(
+            Q=75,
+            losless=False,
+            alpha_q=100,
+            smart_subsample=True,
+            effort=6,
+            no_profile=True,
+            strip=True,
+        )
+
+
+    def __verify_image(self, filepath: str) -> pyvips.Image:
         """
             Verifies a file is actually an image
 
@@ -61,19 +94,22 @@ class ImageConverter:
         """
 
         try:
-            img: pyvips.Image = pyvips.Image.new_from_buffer(self.storage.open_image(job), "") #pyright: ignore [reportAssignmentType]
-            img.stats() 
+            img: pyvips.Image = pyvips.Image.new_from_buffer(self.storage.open_image(filepath), "") #pyright: ignore [reportAssignmentType]
+            img.stats()
         except:
-            pass
+            raise JobFailedError(f"Image does not appear to be an image at {filepath}")
 
-    def convert(self, job: Job):
-        if not self.storage.exists(job):
-            raise JobFailedError(f"Image does not exists at {job.input_url}")
+        return img
 
-        img_format = self._get_mime_type(job)
+    def convert(self, filepath: str):
+        if not self.storage.exists(filepath):
+            raise JobFailedError(f"Image does not exist at {filepath}")
 
-        self.__verify_image(job)
+        img_format = self._get_mime_type(filepath)
+        image = self.__verify_image(filepath)
 
-        
+        image = self.__resize_image(image)
+        self.__convert_to_webp(image)
+
 
         raise NotImplementedError

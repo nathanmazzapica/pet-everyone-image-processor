@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 import os
 from PIL import Image, ImageFile
 
-from src.models.job import Job
 
 class Storage(ABC):
     @staticmethod
@@ -21,7 +20,7 @@ class Storage(ABC):
         pass
 
     @abstractmethod
-    def upload(self, job: Job, image: Image.Image) -> str | None:
+    def upload(self, filepath: str, image: Image.Image) -> str | None:
         pass
 
     # I'm not sure what this will look like yet...
@@ -30,7 +29,7 @@ class Storage(ABC):
     # Do we want to move image opening to this method instead of using Image.open in services? maybe... but
     # pyvips doesn't really work like that it seems
     @abstractmethod
-    def open_image(self, job: Job) -> bytes:
+    def open_image(self, filepath: str) -> bytes:
         pass
 
     @abstractmethod
@@ -39,12 +38,12 @@ class Storage(ABC):
         pass
 
     @abstractmethod
-    def exists(self, job: Job) -> bool:
+    def exists(self, filepath: str) -> bool:
         pass
 
 
 class LocalStorage(Storage):
-    
+
     def __init__(self, base_path: str) -> None:
         self.base_path = base_path
 
@@ -55,14 +54,14 @@ class LocalStorage(Storage):
     def generate_output_path(self, input_path: str) -> str:
         return f"{Storage.__clean_filepath(input_path)}-withoutbg.webp"
 
-    def open_image(self, job: Job) -> bytes:
-        with open(job.input_url, "rb") as f:
+    def open_image(self, filepath: str) -> bytes:
+        with open(filepath, "rb") as f:
             file_bytes = f.read()
             return file_bytes
 
-    def upload(self, job: Job, image: Image.Image) -> str | None:
+    def upload(self, filepath: str, image: Image.Image) -> str | None:
         try:
-            output_path = self.generate_output_path(job.input_url)
+            output_path = self.generate_output_path(filepath)
             image.save(output_path)
             return output_path
         except OSError as ose:
@@ -70,5 +69,5 @@ class LocalStorage(Storage):
             print(ose)
             pass
 
-    def exists(self, job: Job) -> bool:
-        return os.path.isfile(job.input_url)
+    def exists(self, filepath: str) -> bool:
+        return os.path.isfile(filepath)

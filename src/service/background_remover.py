@@ -36,7 +36,7 @@ class BackgroundRemover:
 
     def __remove_background(self, job: Job) -> None:
         result = self.model.remove_background(job.input_url)
-        output_path = self.storage.upload(job, result)
+        output_path = self.storage.upload(job.input_url, result)
         job.output_url = output_path
         self.repository.update_output_url(job.id, output_path)
 
@@ -55,7 +55,7 @@ class BackgroundRemover:
         if job.status != JobStatus.QUEUED:
             raise InvalidJobError(f"Job {job.id} is not queued at this time {job}")
 
-        if not self.storage.exists(job):
+        if not self.storage.exists(job.input_url):
             self.__mark_job_failed(job)
             raise FileNotFoundError(f"no image found at {job.input_url}")
 
