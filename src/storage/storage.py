@@ -1,11 +1,12 @@
 from abc import ABC, abstractmethod
 import os
-from PIL import Image, ImageFile
 
+import pyvips
+from PIL import Image, ImageFile
 
 class Storage(ABC):
     @staticmethod
-    def __clean_filepath(filepath: str) -> str:
+    def _clean_filepath(filepath: str) -> str:
         """Removes the file extension from a filepath"""
         if not filepath:
             return ""
@@ -16,11 +17,15 @@ class Storage(ABC):
         return filepath[:last_dot]
 
     @abstractmethod
+    def generate_preprocess_path(self, input_path: str) -> str:
+        pass
+
+    @abstractmethod
     def generate_output_path(self, input_path: str) -> str:
         pass
 
     @abstractmethod
-    def upload(self, filepath: str, image: Image.Image) -> str | None:
+    def upload(self, filepath: str, image: pyvips.Image, pre=False) -> str | None:
         pass
 
     # I'm not sure what this will look like yet...
@@ -41,33 +46,45 @@ class Storage(ABC):
     def exists(self, filepath: str) -> bool:
         pass
 
-
 class LocalStorage(Storage):
 
     def __init__(self, base_path: str) -> None:
         self.base_path = base_path
 
+    def get_tmp_path(self) -> str:
+        return os.path.join(self.base_path, "tmp")
+
     # authority decide who
     def __get_mime_type(self, input_path: str) -> str:
         raise NotImplementedError
 
+    def generate_preprocess_path(self, input_path: str) -> str:
+        return os.path.join(self.get_tmp_path(), f"{Storage._clean_filepath(input_path)}-pre.webp")
+
     def generate_output_path(self, input_path: str) -> str:
-        return f"{Storage.__clean_filepath(input_path)}-withoutbg.webp"
+        return os.path.join(self.get_tmp_path(), f"{Storage._clean_filepath(input_path)}-out.webp")
 
     def open_image(self, filepath: str) -> bytes:
-        with open(filepath, "rb") as f:
+        with open(self.resolve(filepath), "rb") as f:
             file_bytes = f.read()
             return file_bytes
 
-    def upload(self, filepath: str, image: Image.Image) -> str | None:
+    def upload(self, filepath: str, image: pyvips.Image, pre=False) -> str | None:
         try:
-            output_path = self.generate_output_path(filepath)
-            image.save(output_path)
+            if pre:
+                output_path = self.generate_preprocess_path(filepath)
+            else:
+                output_path = self.generate_output_path(filepath)
+            print(output_path)
+            image.write_to_file(output_path, strip=True)
             return output_path
         except OSError as ose:
             # raised if file cannot be fully written
             print(ose)
             pass
 
+    def resolve(self, filepath: str) -> str:
+        return os.path.join(self.base_path, filepath)
+
     def exists(self, filepath: str) -> bool:
-        return os.path.isfile(filepath)
+        return os.path.exists(self.resolve(filepath))
