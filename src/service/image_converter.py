@@ -32,41 +32,20 @@ class ImageConverter:
         # initialize libvips as needed
         pass
 
-    def _get_mime_type(self, filepath: str) -> ImageFormat:
-        """Verifies the image has a valid file format and returns the format.
-
-            Raises:
-                InvalidImageFormatError if file format is not a whitelisted image.
-        """
-        try:
-            header = self.storage.open_image(filepath)[:12]
-        except OSError as exc:
-            raise InvalidImageFormatError from exc
-
-        if header.startswith(b"\x89PNG\r\n\x1a\n"):
-            return ImageFormat.PNG
-
-        if header[:3] == b"\xFF\xD8\xFF":
-            return ImageFormat.JPEG
-
-        if header.startswith(b"RIFF") and header[8:12] == b"WEBP":
-            return ImageFormat.WEBP
-
-        if len(header) >= 12 and header[4:8] == b"ftyp":
-            brand = header[8:12]
-            if brand in {b"heic", b"heix", b"mif1", b"msf1", b"heif"}:
-                return ImageFormat.HEIF
-
-        raise InvalidImageFormatError
-
     def __resize_image(self, img: pyvips.Image):
         aspect_ratio = get_aspect_ratio(img)
 
         if aspect_ratio == AspectRatio.SQUARE:
+            if img.width <= 1024 and img.height <= 1024:
+                return img
             return img.thumbnail_image(1024, height=1024)
         if aspect_ratio == AspectRatio.WIDE:
+            if img.width <= 1280:
+                return img
             return img.thumbnail_image(1280, height=720)
         if aspect_ratio == AspectRatio.TALL:
+            if img.height <= 1280:
+                return img
             return img.thumbnail_image(720, height=1280)
 
         raise ValueError("Invalid aspect ratio")
@@ -91,9 +70,10 @@ class ImageConverter:
         if not self.storage.exists(filepath):
             raise JobFailedError(f"Image does not exist at {filepath}")
 
-        img_format = self._get_mime_type(filepath)
-        image = self.__verify_image(filepath)
+        image = self.storage.open_image(filepath)
+        print(image.width, image.height)
         image = self.__resize_image(image)
+        print(image.width, image.height)
 
         return self.storage.upload(filepath, image, pre=True)
 
