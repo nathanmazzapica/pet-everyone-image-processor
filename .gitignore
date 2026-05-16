@@ -28,4 +28,4 @@ htmlcov/
 # OS files
 .DS_Store
 
-tests/resources/*
+/tests/resources/
