@@ -33,14 +33,13 @@ class ImageConverter:
         pass
 
     def _get_mime_type(self, filepath: str) -> ImageFormat:
-        """Gets the mime type of image
+        """Verifies the image has a valid file format and returns the format.
 
             Raises:
                 InvalidImageFormatError if file format is not a whitelisted image.
         """
         try:
-            with open(filepath, "rb") as file:
-                header = file.read(12)
+            header = self.storage.open_image(filepath)[:12]
         except OSError as exc:
             raise InvalidImageFormatError from exc
 
@@ -72,19 +71,6 @@ class ImageConverter:
 
         raise ValueError("Invalid aspect ratio")
 
-
-    def __convert_to_webp(self, img: pyvips.Image) -> None:
-        img.webpsave(
-            Q=75,
-            losless=False,
-            alpha_q=100,
-            smart_subsample=True,
-            effort=6,
-            no_profile=True,
-            strip=True,
-        )
-
-
     def __verify_image(self, filepath: str) -> pyvips.Image:
         """
             Verifies a file is actually an image
@@ -101,15 +87,13 @@ class ImageConverter:
 
         return img
 
-    def convert(self, filepath: str):
+    def convert(self, filepath: str) -> str | None:
         if not self.storage.exists(filepath):
             raise JobFailedError(f"Image does not exist at {filepath}")
 
         img_format = self._get_mime_type(filepath)
         image = self.__verify_image(filepath)
-
         image = self.__resize_image(image)
-        self.__convert_to_webp(image)
 
+        return self.storage.upload(filepath, image, pre=True)
 
-        raise NotImplementedError
