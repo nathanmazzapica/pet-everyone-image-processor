@@ -5,7 +5,7 @@ import pyvips
 from PIL import Image, ImageFile
 
 from models.image_format import ImageFormat
-from service.conversion_exceptions import InvalidImageFormatError
+from src.service.conversion_exceptions import InvalidImageFormatError
 
 
 class Storage(ABC):
@@ -92,7 +92,11 @@ class LocalStorage(Storage):
 
     def open_image(self, filepath: str) -> pyvips.Image:
         """Opens an image file and returns the bytes"""
-        self._validate_mime_type(filepath)
+        try:
+            self._validate_mime_type(filepath)
+        except InvalidImageFormatError as iife:
+            raise InvalidImageFormatError(f"Invalid image format: {filepath}")
+
         return pyvips.Image.new_from_file(self.resolve(filepath))
 
 
