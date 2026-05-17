@@ -3,7 +3,7 @@ import os
 import uuid
 from typing import Optional
 
-from fastapi import Body, Depends, FastAPI, Header, HTTPException, status
+from fastapi import Body, Depends, FastAPI, Header, HTTPException, status, UploadFile, File
 from fastapi.responses import StreamingResponse
 
 from src.api.models import StatusResponse, UploadRequest, UploadResponse
@@ -25,6 +25,24 @@ def verify_shared_secret(
     x_pe_secret: Optional[str] = Header(default=None, alias="X-PE-Secret"),
     shared_secret: str = Depends(get_shared_secret),
 ) -> None:
+    """
+    Verifies if the provided shared secret matches the expected shared secret.
+
+    This function checks the incoming `X-PE-Secret` header against a predefined shared
+    secret. If the header value is missing or does not match, an HTTP 401 Unauthorized
+    exception is raised.
+
+    Parameters:
+        x_pe_secret (Optional[str]): The value of the `X-PE-Secret` header, passed
+            automatically by the header extraction mechanism. Defaults to None
+            if not provided in the request.
+        shared_secret (str): The expected shared secret. It is injected via dependency
+            injection from the `get_shared_secret` function.
+
+    Raises:
+        HTTPException: Raised with status code 401 if the shared secret does not match
+            or is missing.
+    """
     if not x_pe_secret or x_pe_secret != shared_secret:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -38,31 +56,21 @@ def ping() -> dict:
 
 
 @app.post("/upload", status_code=status.HTTP_201_CREATED, response_model=UploadResponse)
-def upload(
-    payload: UploadRequest = Body(...),
-    x_pe_secret: Optional[str] = Header(default=None, alias="X-PE-Secret"),
-    shared_secret: str = Depends(get_shared_secret),
+async def upload(
+        file: UploadFile = File(...),
+        x_pe_secret: Optional[str] = Header(default=None, alias="X-PE-Secret"),
+        shared_secret: str = Depends(get_shared_secret),
 ) -> UploadResponse:
-    secret = x_pe_secret or payload.secret
-    if not secret or secret != shared_secret:
+    if not x_pe_secret or x_pe_secret != shared_secret:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Unauthorized",
         )
 
+    image_bytes = await file.read()
+
+
+
+
     image_id = str(uuid.uuid4())
     return UploadResponse(image_id=image_id, status="queued")
-
-
-@app.get("/status/{image_id}", response_model=StatusResponse, dependencies=[Depends(verify_shared_secret)])
-def status_check(image_id: str) -> StatusResponse:
-    return StatusResponse(image_id=image_id, status="processing")
-
-
-@app.get("/subscribe/{image_id}", dependencies=[Depends(verify_shared_secret)])
-def subscribe(image_id: str) -> StreamingResponse:
-    def event_stream():
-        payload = json.dumps({"image_id": image_id, "status": "processing"})
-        yield f"event: status\ndata: {payload}\n\n"
-
-    return StreamingResponse(event_stream(), media_type="text/event-stream")
