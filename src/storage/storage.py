@@ -33,6 +33,10 @@ class Storage(ABC):
         pass
 
     @abstractmethod
+    def upload_bytes(self, filepath: str, image: bytes):
+        pass
+
+    @abstractmethod
     def upload(self, filepath: str, image: pyvips.Image, pre=False) -> str | None:
         pass
 
@@ -101,6 +105,9 @@ class LocalStorage(Storage):
         return pyvips.Image.new_from_file(self.resolve(filepath))
 
 
+    def upload_bytes(self, filepath: str, image: bytes):
+        with open(self.resolve(filepath), "wb") as f:
+            f.write(image)
 
 
     def upload(self, filepath: str, image: pyvips.Image, pre=False) -> str | None:
