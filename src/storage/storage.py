@@ -56,6 +56,7 @@ class LocalStorage(Storage):
 
     def __init__(self, base_path: str) -> None:
         self.base_path = base_path
+        os.makedirs(self.get_tmp_path(), exist_ok=True)
 
     def get_tmp_path(self) -> str:
         return os.path.join(self.base_path, "tmp")
