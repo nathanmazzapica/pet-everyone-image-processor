@@ -4,7 +4,7 @@ import os
 import pyvips
 from PIL import Image, ImageFile
 
-from models.image_format import ImageFormat
+from src.models.image_format import ImageFormat
 from src.service.conversion_exceptions import InvalidImageFormatError
 
 
