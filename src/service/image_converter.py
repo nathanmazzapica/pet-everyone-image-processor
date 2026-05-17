@@ -1,9 +1,8 @@
 """
 The image converter service handles converting input images and resizing them as a pre-processing step to background removal
 """
+from enum import Enum
 
-from PIL import Image
-from src.models.job import Job
 from src.repository.repository import JobRepository
 from src.models.image_format import ImageFormat
 from src.service.conversion_exceptions import InvalidImageFormatError
@@ -11,48 +10,47 @@ from src.service.exceptions import JobFailedError
 from src.storage.storage import Storage
 import pyvips
 
+class AspectRatio(Enum):
+    SQUARE = 1
+    WIDE = 2
+    TALL = 3
+
+
+def get_aspect_ratio(img: pyvips.Image) -> AspectRatio:
+    raw = img.width / img.height
+    if raw > 1:
+        return AspectRatio.WIDE
+    if raw == 1:
+        return AspectRatio.SQUARE
+    return AspectRatio.TALL
+
+
 class ImageConverter:
     def __init__(self, repository: JobRepository, storage: Storage) -> None:
         self.repository = repository
         self.storage = storage
         # initialize libvips as needed
         pass
-    
-    def _get_mime_type(self, job: Job) -> ImageFormat:
-        """Gets the mime type of an image
-        
-            Raises:
-                InvalidImageFormatError if file format is not a whitelisted image.
-        """
-        try:
-            with open(job.input_url, "rb") as file:
-                header = file.read(12)
-        except OSError as exc:
-            raise InvalidImageFormatError from exc
 
-        if header.startswith(b"\x89PNG\r\n\x1a\n"):
-            return ImageFormat.PNG
+    def __resize_image(self, img: pyvips.Image):
+        aspect_ratio = get_aspect_ratio(img)
 
-        if header[:3] == b"\xFF\xD8\xFF":
-            return ImageFormat.JPEG
+        if aspect_ratio == AspectRatio.SQUARE:
+            if img.width <= 1024 and img.height <= 1024:
+                return img
+            return img.thumbnail_image(1024, height=1024)
+        if aspect_ratio == AspectRatio.WIDE:
+            if img.width <= 1280:
+                return img
+            return img.thumbnail_image(1280, height=720)
+        if aspect_ratio == AspectRatio.TALL:
+            if img.height <= 1280:
+                return img
+            return img.thumbnail_image(720, height=1280)
 
-        if header.startswith(b"RIFF") and header[8:12] == b"WEBP":
-            return ImageFormat.WEBP
+        raise ValueError("Invalid aspect ratio")
 
-        if len(header) >= 12 and header[4:8] == b"ftyp":
-            brand = header[8:12]
-            if brand in {b"heic", b"heix", b"mif1", b"msf1", b"heif"}:
-                return ImageFormat.HEIF
-
-        raise InvalidImageFormatError
-
-    def __resize_image(self, job: Job):
-        raise NotImplementedError
-
-    def __convert_to_webp(self, job: Job):
-        raise NotImplementedError
-
-    def __verify_image(self, job: Job) -> None:
+    def __verify_image(self, filepath: str) -> pyvips.Image:
         """
             Verifies a file is actually an image
 
@@ -61,19 +59,21 @@ class ImageConverter:
         """
 
         try:
-            img: pyvips.Image = pyvips.Image.new_from_buffer(self.storage.open_image(job), "") #pyright: ignore [reportAssignmentType]
-            img.stats() 
+            img: pyvips.Image = pyvips.Image.new_from_buffer(self.storage.open_image(filepath), "") #pyright: ignore [reportAssignmentType]
+            img.stats()
         except:
-            pass
+            raise JobFailedError(f"Image does not appear to be an image at {filepath}")
 
-    def convert(self, job: Job):
-        if not self.storage.exists(job):
-            raise JobFailedError(f"Image does not exists at {job.input_url}")
+        return img
 
-        img_format = self._get_mime_type(job)
+    def convert(self, filepath: str) -> str | None:
+        if not self.storage.exists(filepath):
+            raise JobFailedError(f"Image does not exist at {filepath}")
 
-        self.__verify_image(job)
+        image = self.storage.open_image(filepath)
+        print(image.width, image.height)
+        image = self.__resize_image(image)
+        print(image.width, image.height)
 
-        
+        return self.storage.upload(filepath, image, pre=True)
 
-        raise NotImplementedError

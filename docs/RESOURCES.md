@@ -4,4 +4,6 @@
 
 Reveals the magic bytes (sometimes $ftypeheic sometimes just ftypeheic)
 
+https://xael.org/pages/pyclamd-en.html
+
 
