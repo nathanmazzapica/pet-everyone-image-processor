@@ -2,11 +2,6 @@ from abc import ABC, abstractmethod
 import os
 
 import pyvips
-from PIL import Image, ImageFile
-
-from src.models.image_format import ImageFormat
-from src.service.conversion_exceptions import InvalidImageFormatError
-
 
 class Storage(ABC):
     @staticmethod
@@ -21,30 +16,11 @@ class Storage(ABC):
         return filepath[:last_dot]
 
     @abstractmethod
-    def _validate_mime_type(self, filepath: str) -> str:
-        pass
-
-    @abstractmethod
-    def generate_preprocess_path(self, input_path: str) -> str:
-        pass
-
-    @abstractmethod
-    def generate_output_path(self, input_path: str) -> str:
-        pass
-
-    @abstractmethod
     def upload_bytes(self, filepath: str, image: bytes):
         pass
 
     @abstractmethod
-    def upload(self, filepath: str, image: pyvips.Image, pre=False) -> str | None:
-        pass
-
-    # I'm not sure what this will look like yet...
-    # If we're getting a file from S3 it needs to be downloaded first
-    # If we're getting a file locally, we just need to open it?
-    @abstractmethod
-    def open_image(self, filepath: str) -> pyvips.Image:
+    def open_bytes(self, filepath: str) -> bytes:
         pass
 
     @abstractmethod
@@ -65,64 +41,19 @@ class LocalStorage(Storage):
     def get_tmp_path(self) -> str:
         return os.path.join(self.base_path, "tmp")
 
-    def _validate_mime_type(self, filepath: str) -> ImageFormat:
-        """Verifies the image has a valid file format and returns the format.
-
-            Raises:
-                InvalidImageFormatError if file format is not a whitelisted image.
-        """
-        with (open(self.resolve(filepath), "rb")) as f:
-            header = f.read(16)
-            if header.startswith(b"\x89PNG\r\n\x1a\n"):
-                return ImageFormat.PNG
-
-            if header[:3] == b"\xFF\xD8\xFF":
-                return ImageFormat.JPEG
-
-            if header.startswith(b"RIFF") and header[8:12] == b"WEBP":
-                return ImageFormat.WEBP
-
-            if len(header) >= 12 and header[4:8] == b"ftyp":
-                brand = header[8:12]
-                if brand in {b"heic", b"heix", b"mif1", b"msf1", b"heif"}:
-                    return ImageFormat.HEIF
-
-            raise InvalidImageFormatError
-
     def generate_preprocess_path(self, input_path: str) -> str:
         return os.path.join(self.get_tmp_path(), f"{Storage._clean_filepath(input_path)}-pre.webp")
 
     def generate_output_path(self, input_path: str) -> str:
         return os.path.join(self.get_tmp_path(), f"{Storage._clean_filepath(input_path)}-out.webp")
 
-    def open_image(self, filepath: str) -> pyvips.Image:
-        """Opens an image file and returns the bytes"""
-        try:
-            self._validate_mime_type(filepath)
-        except InvalidImageFormatError as iife:
-            raise InvalidImageFormatError(f"Invalid image format: {filepath}")
-
-        return pyvips.Image.new_from_file(self.resolve(filepath))
-
-
     def upload_bytes(self, filepath: str, image: bytes):
         with open(self.resolve(filepath), "wb") as f:
             f.write(image)
 
-
-    def upload(self, filepath: str, image: pyvips.Image, pre=False) -> str | None:
-        try:
-            if pre:
-                output_path = self.generate_preprocess_path(filepath)
-            else:
-                output_path = self.generate_output_path(filepath)
-            print(output_path)
-            image.write_to_file(output_path, strip=True)
-            return output_path
-        except OSError as ose:
-            # raised if file cannot be fully written
-            print(ose)
-            pass
+    def open_bytes(self, filepath: str) -> bytes:
+        with open(self.resolve(filepath), "rb") as f:
+            return f.read()
 
     def resolve(self, filepath: str) -> str:
         return os.path.join(self.base_path, filepath)
