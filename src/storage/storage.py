@@ -24,8 +24,7 @@ class Storage(ABC):
         pass
 
     @abstractmethod
-    def get_tmp_path(self) -> str:
-        """returns a temporary filepath for intra-processing steps"""
+    def get_full_path(self, filepath: str) -> str:
         pass
 
     @abstractmethod
@@ -36,27 +35,28 @@ class LocalStorage(Storage):
 
     def __init__(self, base_path: str) -> None:
         self.base_path = base_path
-        os.makedirs(self.get_tmp_path(), exist_ok=True)
+        os.makedirs(self.base_path, exist_ok=True)
 
-    def get_tmp_path(self) -> str:
-        return os.path.join(self.base_path, "tmp")
-
-    def generate_preprocess_path(self, input_path: str) -> str:
-        return os.path.join(self.get_tmp_path(), f"{Storage._clean_filepath(input_path)}-pre.webp")
-
-    def generate_output_path(self, input_path: str) -> str:
-        return os.path.join(self.get_tmp_path(), f"{Storage._clean_filepath(input_path)}-out.webp")
-
-    def upload_bytes(self, filepath: str, image: bytes):
-        with open(self.resolve(filepath), "wb") as f:
-            f.write(image)
-
-    def open_bytes(self, filepath: str) -> bytes:
-        with open(self.resolve(filepath), "rb") as f:
-            return f.read()
-
-    def resolve(self, filepath: str) -> str:
+    def _asset_path(self, filepath: str) -> str:
         return os.path.join(self.base_path, filepath)
 
+    def _ensure_directory(self, filepath: str) -> None:
+        directory = os.path.dirname(self._asset_path(filepath))
+        os.makedirs(directory, exist_ok=True)
+
+    def upload_bytes(self, filepath: str, image: bytes) -> str:
+        full_path = self._asset_path(filepath)
+        self._ensure_directory(filepath)
+        with open(full_path, "wb") as f:
+            f.write(image)
+        return full_path
+
+    def open_bytes(self, filepath: str) -> bytes:
+        with open(self._asset_path(filepath), "rb") as f:
+            return f.read()
+
+    def get_full_path(self, filepath: str) -> str:
+        return self._asset_path(filepath)
+
     def exists(self, filepath: str) -> bool:
-        return os.path.exists(self.resolve(filepath))
+        return os.path.exists(self._asset_path(filepath))
