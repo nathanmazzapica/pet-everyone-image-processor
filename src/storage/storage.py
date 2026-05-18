@@ -24,6 +24,10 @@ class Storage(ABC):
         pass
 
     @abstractmethod
+    def delete(self, filepath: str) -> None:
+        pass
+
+    @abstractmethod
     def get_full_path(self, filepath: str) -> str:
         pass
 
@@ -54,6 +58,9 @@ class LocalStorage(Storage):
     def open_bytes(self, filepath: str) -> bytes:
         with open(self._asset_path(filepath), "rb") as f:
             return f.read()
+
+    def delete(self, filepath: str) -> None:
+        os.remove(self._asset_path(filepath))
 
     def get_full_path(self, filepath: str) -> str:
         return self._asset_path(filepath)
