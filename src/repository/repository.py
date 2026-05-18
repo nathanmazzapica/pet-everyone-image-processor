@@ -51,7 +51,7 @@ class JobRepository():
         with self.conn:
             res = self.conn.execute(
                     "SELECT * FROM job WHERE job_status=(?) ORDER BY created_at LIMIT 1",
-                    ((JobStatus.QUEUED.value,))
+                    (JobStatus.QUEUED.value,)
                     )
             row = res.fetchone()
             if row is None:
@@ -154,7 +154,7 @@ class JobRepository():
     def lock_job(self, job_id: int) -> bool:
         with self.conn:
             res = self.conn.execute(
-                "UPDATE job SET job_last_locked=(?), job_status=(?) WHERE job_status=(?) AND job_id=(?)",
+                "UPDATE job SET last_locked=(?), job_status=(?) WHERE job_status=(?) AND job_id=(?)",
                 (datetime.datetime.now(), JobStatus.PROCESSING.value, JobStatus.QUEUED.value, job_id),
                     )
             return res.rowcount > 0
@@ -162,7 +162,7 @@ class JobRepository():
     def update_last_locked(self, job_id: int, last_locked: float | None) -> bool:
         with self.conn:
             res = self.conn.execute(
-                "UPDATE job SET job_last_locked=(?) WHERE job_id=(?)",
+                "UPDATE job SET last_locked=(?) WHERE job_id=(?)",
                 (last_locked, job_id),
             )
             return res.rowcount > 0
@@ -170,7 +170,7 @@ class JobRepository():
     def update_attempt_count(self, job_id: int, attempt_count: int) -> bool:
         with self.conn:
             res = self.conn.execute(
-                "UPDATE job SET job_attempt_count=(?) WHERE job_id=(?)",
+                "UPDATE job SET attempt_count=(?) WHERE job_id=(?)",
                 (attempt_count, job_id),
             )
             return res.rowcount > 0
@@ -190,6 +190,13 @@ class JobRepository():
                 (input_url, job_id),
             )
             return res.rowcount > 0
+
+    def update_proc_url(self, job_id: int, proc_url: str | None) -> bool:
+        with self.conn:
+            res = self.conn.execute(
+                "UPDATE job SET proc_url=(?) WHERE job_id=(?)",
+                (proc_url, job_id),
+            )
 
 
     
