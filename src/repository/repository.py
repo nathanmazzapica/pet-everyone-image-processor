@@ -183,5 +183,13 @@ class JobRepository():
             )
             return res.rowcount > 0
 
+    def update_input_url(self, job_id: int, input_url: str | None) -> bool:
+        with self.conn:
+            res = self.conn.execute(
+                "UPDATE job SET input_url=(?) WHERE job_id=(?)",
+                (input_url, job_id),
+            )
+            return res.rowcount > 0
+
 
     
