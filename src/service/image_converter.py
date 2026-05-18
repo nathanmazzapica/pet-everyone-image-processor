@@ -3,11 +3,7 @@ The image converter service handles converting input images and resizing them as
 """
 from enum import Enum
 
-from src.repository.repository import JobRepository
-from src.models.image_format import ImageFormat
-from src.service.conversion_exceptions import InvalidImageFormatError
 from src.service.exceptions import JobFailedError
-from src.storage.storage import Storage
 import pyvips
 
 class AspectRatio(Enum):
@@ -16,7 +12,7 @@ class AspectRatio(Enum):
     TALL = 3
 
 
-def get_aspect_ratio(img: pyvips.Image) -> AspectRatio:
+def _get_aspect_ratio(img: pyvips.Image) -> AspectRatio:
     raw = img.width / img.height
     if raw > 1:
         return AspectRatio.WIDE
@@ -25,55 +21,43 @@ def get_aspect_ratio(img: pyvips.Image) -> AspectRatio:
     return AspectRatio.TALL
 
 
-class ImageConverter:
-    def __init__(self, repository: JobRepository, storage: Storage) -> None:
-        self.repository = repository
-        self.storage = storage
-        # initialize libvips as needed
-        pass
+def _verify_image(file: bytes) -> pyvips.Image:
+    """
+        Verifies a file is actually an image
 
-    def __resize_image(self, img: pyvips.Image):
-        aspect_ratio = get_aspect_ratio(img)
+        Raises:
+            JobFailedError if an image cannot be verified
+    """
 
-        if aspect_ratio == AspectRatio.SQUARE:
-            if img.width <= 1024 and img.height <= 1024:
-                return img
-            return img.thumbnail_image(1024, height=1024)
-        if aspect_ratio == AspectRatio.WIDE:
-            if img.width <= 1280:
-                return img
-            return img.thumbnail_image(1280, height=720)
-        if aspect_ratio == AspectRatio.TALL:
-            if img.height <= 1280:
-                return img
-            return img.thumbnail_image(720, height=1280)
+    try:
+        img: pyvips.Image = pyvips.Image.new_from_buffer(file, "") #pyright: ignore [reportAssignmentType]
+        img.stats()
+    except:
+        raise JobFailedError(f"Invalid image data")
 
-        raise ValueError("Invalid aspect ratio")
+    return img
 
-    def __verify_image(self, filepath: str) -> pyvips.Image:
-        """
-            Verifies a file is actually an image
 
-            Raises:
-                JobFailedError if an image cannot be verified
-        """
+def _resize_image(img: pyvips.Image):
+    aspect_ratio = _get_aspect_ratio(img)
 
-        try:
-            img: pyvips.Image = pyvips.Image.new_from_buffer(self.storage.open_image(filepath), "") #pyright: ignore [reportAssignmentType]
-            img.stats()
-        except:
-            raise JobFailedError(f"Image does not appear to be an image at {filepath}")
+    if aspect_ratio == AspectRatio.SQUARE:
+        if img.width <= 1024 and img.height <= 1024:
+            return img
+        return img.thumbnail_image(1024, height=1024)
+    if aspect_ratio == AspectRatio.WIDE:
+        if img.width <= 1280:
+            return img
+        return img.thumbnail_image(1280, height=720)
+    if aspect_ratio == AspectRatio.TALL:
+        if img.height <= 1280:
+            return img
+        return img.thumbnail_image(720, height=1280)
 
-        return img
+    raise ValueError("Invalid aspect ratio")
 
-    def convert(self, filepath: str) -> str | None:
-        if not self.storage.exists(filepath):
-            raise JobFailedError(f"Image does not exist at {filepath}")
 
-        image = self.storage.open_image(filepath)
-        print(image.width, image.height)
-        image = self.__resize_image(image)
-        print(image.width, image.height)
-
-        return self.storage.upload(filepath, image, pre=True)
-
+def convert(image_data: bytes) -> bytes:
+    img = _verify_image(image_data)
+    img = _resize_image(img)
+    return img.write_to_buffer(".webp", Q=80, strip=True)
