@@ -14,9 +14,9 @@ from src.storage.storage import LocalStorage
 def run_app():
     print("Starting app")
     load_dotenv()
-    secret = os.getenv("SECRET_KEY")
+    secret = os.getenv("PE_SHARED_SECRET")
     if secret is None:
-        raise Exception("SECRET_KEY is not set")
+        raise Exception("PE_SHARED_SECRET is not set")
     conn = sqlite3.connect("jobs.db")
     repo = JobRepository(conn)
     prepo = PreprocessJobRepository(conn)
