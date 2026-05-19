@@ -88,13 +88,13 @@ class ImageProcessingService:
         except pyvips.error.Error as e:
             raise InvalidImageFormatError("Invalid image format") from e
 
-    def submit_upload(self, img: bytes, id: uuid.UUID) -> str:
+    def submit_upload(self, img: bytes, img_id: uuid.UUID) -> str:
         """
         Performs basic mime type validation, saves the image to storage and creates a job in the database.
 
         Args:
             img: the image bytes to be processed
-            id: the id of the image
+            img_id: the id of the image
 
         Raises:
             InvalidImageFormatError: if the image is not a valid image format
@@ -104,7 +104,7 @@ class ImageProcessingService:
         except InvalidImageFormatError as e:
             raise JobFailedError("Invalid image") from e
 
-        img_uuid = str(id)
+        img_uuid = str(img_id)
         path = _original_path(img_uuid)
         job_id = self.preprocess_repository.create(path)
         if job_id is None:
@@ -133,6 +133,7 @@ class ImageProcessingService:
             self.preprocess_repository.update_status(job.id, JobStatus.FAILED)
             raise e
         self.preprocess_repository.update_output_url(job.id, path)
+        self.preprocess_repository.update_status(job.id, JobStatus.DONE)
         self.repository.create(path)
 
         return path
