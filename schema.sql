@@ -1,7 +1,7 @@
 CREATE TABLE job
 (
     job_id        INTEGER PRIMARY KEY AUTOINCREMENT,
-    job_status    TEXT    NOT NULL DEFAULT 'PENDING' CHECK (
+    job_status    TEXT    NOT NULL DEFAULT 'QUEUED' CHECK (
         job_status IN (
                        'QUEUED',
                        'PROCESSING',
@@ -12,7 +12,6 @@ CREATE TABLE job
             )
         ),
     input_url     TEXT    NOT NULL,
-    proc_url      TEXT,
     output_url    TEXT,
     attempt_count INTEGER NOT NULL DEFAULT 0,
     last_locked   REAL,
@@ -36,8 +35,8 @@ END;
 
 CREATE TABLE preprocess
 (
-    job_id      INTEGER PRIMARY KEY AUTOINCREMENT,
-    job_status  TEXT    NOT NULL DEFAULT 'PENDING' CHECK (
+    job_id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_status    TEXT    NOT NULL DEFAULT 'QUEUED' CHECK (
         job_status IN (
                        'QUEUED',
                        'PROCESSING',
@@ -47,11 +46,12 @@ CREATE TABLE preprocess
                        'REJECTED'
             )
         ),
-    input_url   TEXT    NOT NULL,
-    output_url  TEXT    NOT NULL,
-    last_locked REAL,
-    created_at  REAL    NOT NULL DEFAULT (strftime('%s', 'now')),
-    updated_at  REAL    NOT NULL DEFAULT (strftime('%s', 'now'))
+    input_url     TEXT    NOT NULL,
+    output_url    TEXT,
+    attempt_count INTEGER NOT NULL DEFAULT 0,
+    last_locked   REAL,
+    created_at    REAL    NOT NULL DEFAULT (strftime('%s', 'now')),
+    updated_at    REAL    NOT NULL DEFAULT (strftime('%s', 'now'))
 );
 
 CREATE INDEX idx_preprocess_status ON preprocess (job_status);
