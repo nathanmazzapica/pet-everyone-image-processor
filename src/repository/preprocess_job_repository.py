@@ -1,0 +1,190 @@
+import sqlite3
+
+import datetime
+from typing import Any, List, Optional
+
+from src.repository.exceptions import DatabaseNotInitialized
+from src.models.job import Job, JobStatus
+
+
+class PreprocessJobRepository:
+
+    def __init__(self, conn: sqlite3.Connection):
+        self.conn = conn
+        self.conn.row_factory = sqlite3.Row
+        self.__ensure_initialized()
+
+    def __ensure_initialized(self, schema_path: str = "schema.sql") -> None:
+        with self.conn:
+            res = self.conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='preprocess'"
+            )
+            if res.fetchone() is not None:
+                return
+
+        try:
+            with open(schema_path, "r", encoding="utf-8") as schema_file:
+                schema_sql = schema_file.read()
+        except FileNotFoundError as exc:
+            raise DatabaseNotInitialized(
+                f"Database is missing schema and '{schema_path}' was not found."
+            ) from exc
+
+        with self.conn:
+            self.conn.executescript(schema_sql)
+
+    def create(self, input_url: str) -> int | None:
+        with self.conn:
+            res = self.conn.execute(
+                "INSERT INTO preprocess(input_url) VALUES (?)", (input_url,)
+            )
+            return res.lastrowid
+
+    def get_by_id(self, id: int) -> Job | None:
+        with self.conn:
+            res = self.conn.execute("SELECT * FROM preprocess WHERE job_id=(?)", (id,))
+            row = res.fetchone()
+            if row is None:
+                return None
+            return Job.from_row(row)
+
+    def get_next_in_queue(self) -> Job | None:
+        with self.conn:
+            res = self.conn.execute(
+                "SELECT * FROM preprocess WHERE job_status=(?) ORDER BY created_at LIMIT 1",
+                (JobStatus.QUEUED.value,),
+            )
+            row = res.fetchone()
+            if row is None:
+                return None
+            return Job.from_row(row)
+
+    def __get_field(self, job_id: int, column: str) -> Any | None:
+        with self.conn:
+            res = self.conn.execute(
+                f"SELECT {column} FROM preprocess WHERE job_id=(?)",
+                (job_id,),
+            )
+            row = res.fetchone()
+            if row is None:
+                return None
+            return row[column]
+
+    def __get_all_by_status(self, status: JobStatus) -> List[Job]:
+        jobs: List[Job] = []
+        with self.conn:
+            res = self.conn.execute(
+                "SELECT * FROM preprocess WHERE job_status=(?)",
+                (status.value,),
+            )
+            for job in res.fetchall():
+                jobs.append(Job.from_row(job))
+            return jobs
+
+    def get_all_queued(self) -> List[Job]:
+        return self.__get_all_by_status(JobStatus.QUEUED)
+
+    def get_all_processing(self) -> List[Job]:
+        return self.__get_all_by_status(JobStatus.PROCESSING)
+
+    def get_all_done(self) -> List[Job]:
+        return self.__get_all_by_status(JobStatus.DONE)
+
+    def get_all_failed(self) -> List[Job]:
+        return self.__get_all_by_status(JobStatus.FAILED)
+
+    def get_all_retry(self) -> List[Job]:
+        return self.__get_all_by_status(JobStatus.RETRY)
+
+    def get_all_rejected(self) -> List[Job]:
+        return self.__get_all_by_status(JobStatus.REJECTED)
+
+    def get_status(self, job_id: int) -> Optional[JobStatus]:
+        value = self.__get_field(job_id, "job_status")
+        if value is None:
+            return None
+        return JobStatus(value)
+
+    def get_input_url(self, job_id: int) -> Optional[str]:
+        value = self.__get_field(job_id, "input_url")
+        if value is None:
+            return None
+        return str(value)
+
+    def get_output_url(self, job_id: int) -> Optional[str]:
+        value = self.__get_field(job_id, "output_url")
+        if value is None:
+            return None
+        return str(value)
+
+    def get_attempt_count(self, job_id: int) -> Optional[int]:
+        value = self.__get_field(job_id, "attempt_count")
+        if value is None:
+            return None
+        return int(value)
+
+    def get_last_locked(self, job_id: int) -> Optional[float]:
+        value = self.__get_field(job_id, "last_locked")
+        if value is None:
+            return None
+        return float(value)
+
+    def get_created_at(self, job_id: int) -> Optional[float]:
+        value = self.__get_field(job_id, "created_at")
+        if value is None:
+            return None
+        return float(value)
+
+    def get_updated_at(self, job_id: int) -> Optional[float]:
+        value = self.__get_field(job_id, "updated_at")
+        if value is None:
+            return None
+        return float(value)
+
+    def update_status(self, job_id: int, status: JobStatus) -> bool:
+        with self.conn:
+            res = self.conn.execute(
+                "UPDATE preprocess SET job_status=(?) WHERE job_id=(?)",
+                (status.value, job_id),
+            )
+            return res.rowcount > 0
+
+    def lock_job(self, job_id: int) -> bool:
+        with self.conn:
+            res = self.conn.execute(
+                "UPDATE preprocess SET last_locked=(?), job_status=(?) WHERE job_status=(?) AND job_id=(?)",
+                (datetime.datetime.now(), JobStatus.PROCESSING.value, JobStatus.QUEUED.value, job_id),
+            )
+            return res.rowcount > 0
+
+    def update_last_locked(self, job_id: int, last_locked: float | None) -> bool:
+        with self.conn:
+            res = self.conn.execute(
+                "UPDATE preprocess SET last_locked=(?) WHERE job_id=(?)",
+                (last_locked, job_id),
+            )
+            return res.rowcount > 0
+
+    def update_attempt_count(self, job_id: int, attempt_count: int) -> bool:
+        with self.conn:
+            res = self.conn.execute(
+                "UPDATE preprocess SET attempt_count=(?) WHERE job_id=(?)",
+                (attempt_count, job_id),
+            )
+            return res.rowcount > 0
+
+    def update_output_url(self, job_id: int, output_url: str | None) -> bool:
+        with self.conn:
+            res = self.conn.execute(
+                "UPDATE preprocess SET output_url=(?) WHERE job_id=(?)",
+                (output_url, job_id),
+            )
+            return res.rowcount > 0
+
+    def update_input_url(self, job_id: int, input_url: str | None) -> bool:
+        with self.conn:
+            res = self.conn.execute(
+                "UPDATE preprocess SET input_url=(?) WHERE job_id=(?)",
+                (input_url, job_id),
+            )
+            return res.rowcount > 0

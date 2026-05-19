@@ -1,4 +1,4 @@
-from src.repository.repository import JobRepository
+from src.repository.job_repository import JobRepository
 from time import sleep
 
 class Worker():
