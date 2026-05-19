@@ -39,8 +39,11 @@ class PetEveryoneImageProcessorAPI:
             file: UploadFile = File(...),
             _: None = Depends(self._verify_shared_secret),
         ) -> UploadResponse:
-            image_bytes = await file.read()
+            try:
+                image_bytes = await file.read()
 
-            image_id = uuid.uuid4()
-            self._image_processing_service.submit_upload(image_bytes, image_id)
-            return UploadResponse(image_id=str(image_id), status="queued")
+                image_id = uuid.uuid4()
+                self._image_processing_service.submit_upload(image_bytes, image_id)
+                return UploadResponse(image_id=str(image_id), status="queued")
+            finally:
+                await file.close()
