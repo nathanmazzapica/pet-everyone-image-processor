@@ -1,12 +1,14 @@
 import os
 import uuid
+from typing import Optional
 
 import pyvips
 
+from src.repository.preprocess_job_repository import PreprocessJobRepository
 from src.service.exceptions import JobFailedError
 from src.models.job import Job
 from src.models.status import JobStatus
-from src.repository.repository import JobRepository
+from src.repository.job_repository import JobRepository
 from src.service.background_remover import BackgroundRemover
 from src.service.conversion_exceptions import InvalidImageFormatError
 from src.service.image_converter import convert
@@ -49,11 +51,13 @@ class ImageProcessingService:
 
     def __init__(self,
                  storage: Storage,
-                 background_remover: BackgroundRemover,
-                 repository: JobRepository):
+                 background_remover: Optional[BackgroundRemover],
+                 job_repository: JobRepository,
+                 preprocess_repository: PreprocessJobRepository):
         self.storage = storage
         self.background_remover = background_remover
-        self.repository = repository
+        self.repository = job_repository
+        self.preprocess_repository = preprocess_repository
 
     def _validate_upload(self, img: bytes) -> None:
         """
@@ -84,12 +88,13 @@ class ImageProcessingService:
         except pyvips.error.Error as e:
             raise InvalidImageFormatError("Invalid image format") from e
 
-    def submit_upload(self, img: bytes) -> str:
+    def submit_upload(self, img: bytes, id: uuid.UUID) -> str:
         """
         Performs basic mime type validation, saves the image to storage and creates a job in the database.
 
         Args:
             img: the image bytes to be processed
+            id: the id of the image
 
         Raises:
             InvalidImageFormatError: if the image is not a valid image format
@@ -99,30 +104,37 @@ class ImageProcessingService:
         except InvalidImageFormatError as e:
             raise JobFailedError("Invalid image") from e
 
-        img_uuid = str(uuid.uuid4())
+        img_uuid = str(id)
         path = _original_path(img_uuid)
-        job_id = self.repository.create(path)
+        job_id = self.preprocess_repository.create(path)
         if job_id is None:
             raise Exception("Failed to create job")
 
         try:
             self.storage.upload_bytes(path, img)
         except OSError as e:
-            self.repository.update_status(job_id, JobStatus.FAILED)
+            self.preprocess_repository.update_status(job_id, JobStatus.FAILED)
             raise JobFailedError("Failed to upload image") from e
 
         return path
 
-    def run_preprocessing(self, job: Job) -> str:
+    def preprocess(self, job: Job) -> str:
         img = self.storage.open_bytes(job.input_url)
-        converted_img = convert(img)
+        try:
+            converted_img = convert(img)
+        except Exception as e:
+            self.preprocess_repository.update_status(job.id, JobStatus.FAILED)
+            raise JobFailedError("Failed to convert image") from e
+
         path = _preprocessed_path(_strip_path(job.input_url))
         try:
             self.storage.upload_bytes(path, converted_img)
         except OSError as e:
-            self.repository.update_status(job.id, JobStatus.FAILED)
+            self.preprocess_repository.update_status(job.id, JobStatus.FAILED)
             raise e
-        self.repository.update_proc_url(job.id, path)
+        self.preprocess_repository.update_output_url(job.id, path)
+        self.repository.create(path)
+
         return path
 
     def run_background_removal(self, job_id: int):
