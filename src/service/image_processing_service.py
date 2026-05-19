@@ -134,7 +134,6 @@ class ImageProcessingService:
             raise e
         self.preprocess_repository.update_output_url(job.id, path)
         self.preprocess_repository.update_status(job.id, JobStatus.DONE)
-        self.repository.create(path)
 
         return path
 

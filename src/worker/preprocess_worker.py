@@ -9,7 +9,7 @@ from time import sleep
 from src.storage.storage import LocalStorage
 
 
-class Worker():
+class Worker:
 
     def __init__(self, repo: PreprocessJobRepository,
                  job_repo: JobRepository,
@@ -35,10 +35,14 @@ class Worker():
 
             try:
                 print(f"Processing job {job.id}")
-                self.proc.preprocess(job)
+                path = self.proc.preprocess(job)
             except Exception as e:
                 print(f"Job {job.id} failed with error {e}")
                 self.repo.update_status(job.id, JobStatus.FAILED)
+                continue
+
+            self.job_repo.create(path)
+
 
 
 if __name__ == "__main__":
