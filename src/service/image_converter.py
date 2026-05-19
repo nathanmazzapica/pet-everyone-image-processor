@@ -3,6 +3,7 @@ The image converter service handles converting input images and resizing them as
 """
 from enum import Enum
 
+from src.service.conversion_exceptions import InvalidImageFormatError
 from src.service.exceptions import JobFailedError
 import pyvips
 
@@ -26,14 +27,14 @@ def _verify_image(file: bytes) -> pyvips.Image:
         Verifies a file is actually an image
 
         Raises:
-            JobFailedError if an image cannot be verified
+            InvalidImageFormatError if an image cannot be verified
     """
 
     try:
         img: pyvips.Image = pyvips.Image.new_from_buffer(file, "") #pyright: ignore [reportAssignmentType]
         img.stats()
     except:
-        raise JobFailedError(f"Invalid image data")
+        raise InvalidImageFormatError(f"Invalid image data")
 
     return img
 
@@ -58,6 +59,22 @@ def _resize_image(img: pyvips.Image):
 
 
 def convert(image_data: bytes) -> bytes:
+    """
+    Convert an image from its input format to the WEBP format.
+
+    This function processes the provided image data, verifies if it is a valid
+    image, resizes it to a specific dimension, and converts it to the WEBP format
+    with specific compression settings. Only valid images are processed.
+
+    Args:
+        image_data (bytes): The binary content of the input image.
+
+    Returns:
+        bytes: The binary content of the converted WEBP image.
+    Raises:
+        InvalidImageFormatError if the provided image is not a valid image.
+        ValueError if the provided image has an invalid aspect ratio.
+    """
     img = _verify_image(image_data)
     img = _resize_image(img)
     return img.write_to_buffer(".webp", Q=80, strip=True)
