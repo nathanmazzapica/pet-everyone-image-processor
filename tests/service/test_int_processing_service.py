@@ -7,7 +7,7 @@ from src.service.exceptions import JobFailedError
 from src.models.job import Job
 from src.models.status import JobStatus
 from src.service.image_processing_service import ImageProcessingService
-from storage.storage import LocalStorage
+from src.storage.storage import LocalStorage
 
 
 @pytest.fixture
