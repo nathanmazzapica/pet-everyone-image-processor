@@ -33,8 +33,8 @@ def _verify_image(file: bytes) -> pyvips.Image:
     try:
         img: pyvips.Image = pyvips.Image.new_from_buffer(file, "") #pyright: ignore [reportAssignmentType]
         img.stats()
-    except:
-        raise InvalidImageFormatError(f"Invalid image data")
+    except pyvips.error.Error as e:
+        raise InvalidImageFormatError("Invalid image data") from e
 
     return img
 
