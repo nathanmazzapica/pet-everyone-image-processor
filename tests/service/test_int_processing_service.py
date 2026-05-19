@@ -44,7 +44,7 @@ def test_preprocesses_image(converter, storage):
     uuid = p.split("/")[-1]
     assert storage.exists(p)
     j = Job(1, JobStatus.QUEUED, p, "", "",  0, None, 0, 0)
-    np = converter.run_preprocessing(j)
+    np = converter.preprocess(j)
     assert np == f"uploads/preprocessed/{uuid}"
     assert storage.exists(f"uploads/preprocessed/{uuid}")
 

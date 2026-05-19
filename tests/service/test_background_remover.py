@@ -1,7 +1,7 @@
 import pytest
 from src.models.job import Job 
 from src.models.status import JobStatus
-from src.repository.repository import JobRepository
+from src.repository.job_repository import JobRepository
 from src.service.background_remover import BackgroundRemover
 from src.service.exceptions import InvalidJobError
 
