@@ -6,3 +6,5 @@ pytest
 pytest-mock
 pyvips
 wand
+python-multipart
+python-dotenv
