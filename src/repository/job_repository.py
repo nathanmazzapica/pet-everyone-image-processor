@@ -58,6 +58,17 @@ class JobRepository():
                 return None
             return Job.from_row(row)
 
+    def get_next_preprocess_job(self) -> Job | None:
+        with self.conn:
+            res = self.conn.execute(
+                    "SELECT * FROM preprocess WHERE job_status=(?) ORDER BY created_at LIMIT 1",
+                    (JobStatus.QUEUED.value,)
+                    )
+            row = res.fetchone()
+            if row is None:
+                return None
+            return Job.from_row(row)
+
     def __get_field(self, job_id: int, column: str) -> Any | None:
         with self.conn:
             res = self.conn.execute(
@@ -191,12 +202,5 @@ class JobRepository():
             )
             return res.rowcount > 0
 
-    def update_proc_url(self, job_id: int, proc_url: str | None) -> bool:
-        with self.conn:
-            res = self.conn.execute(
-                "UPDATE job SET proc_url=(?) WHERE job_id=(?)",
-                (proc_url, job_id),
-            )
 
 
-    
