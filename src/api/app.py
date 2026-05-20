@@ -19,7 +19,7 @@ class PetEveryoneImageProcessorAPI:
     ):
         self._shared_secret = shared_secret
         self._image_processing_service = image_processing_service
-        self.virus_scanner = virus_scanner
+        self._virus_scanner = virus_scanner
         self.app = FastAPI(title=title)
         self._register_routes()
 
@@ -53,7 +53,7 @@ class PetEveryoneImageProcessorAPI:
 
                 try:
                     signature = await run_in_threadpool(
-                        self.virus_scanner.scan, image_bytes
+                        self._virus_scanner.scan, image_bytes
                     )
                     if signature is not None:
                         raise HTTPException(
