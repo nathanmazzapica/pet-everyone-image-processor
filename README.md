@@ -15,6 +15,14 @@ This project is being built as a service for Pet Everyone to use for UGC image u
 It allows for expensive image manipulation operations to be offloaded from the main application server
 and provides a foundation for horizontally scalable processing workers
 
+## Development Setup
+1. Install the requirements
+```bash
+pip3 install -r requirements.txt
+```
+2. Install and configure the [ClamAV](https://docs.clamav.net/manual/Installing.html) Dameon
+3. Setup environment variables, an example is provided in `.env.example`
+4. Run the api with `python3 -m src.service.api.run_api`
 ## AI Usage
 
 Since this project is meant for learning (and fun) AI use will be limited and made explicit in commit messages.
