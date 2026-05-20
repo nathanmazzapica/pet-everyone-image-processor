@@ -45,10 +45,13 @@ class PetEveryoneImageProcessorAPI:
         ) -> UploadResponse:
             try:
                 image_bytes = await file.read()
-                if len(image_bytes) > 25 * 1024 * 1024:
+                if len(image_bytes) > ImageProcessingService.MAX_UPLOAD_SIZE:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="File size exceeds 25MB",
+                        detail=(
+                            f"File size exceeds "
+                            f"{ImageProcessingService.MAX_UPLOAD_SIZE // (1024 * 1024)}MB"
+                        ),
                     )
 
                 try:
