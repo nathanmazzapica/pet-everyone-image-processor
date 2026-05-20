@@ -8,6 +8,7 @@ from src.api.app import PetEveryoneImageProcessorAPI
 from src.repository.job_repository import JobRepository
 from src.repository.preprocess_job_repository import PreprocessJobRepository
 from src.service.image_processing_service import ImageProcessingService
+from src.security.virus_scanner import VirusScanner
 from src.storage.storage import LocalStorage
 
 
@@ -22,7 +23,8 @@ def run_app():
     prepo = PreprocessJobRepository(conn)
     storage = LocalStorage(base_path="storage")
     service = ImageProcessingService(storage, None, repo, prepo)
-    api = PetEveryoneImageProcessorAPI(secret, service)
+    scanner = VirusScanner()
+    api = PetEveryoneImageProcessorAPI(secret, service, scanner)
     port = int(os.getenv("PORT", "8080"))
     uvicorn.run(api.app, host="0.0.0.0", port=port)
 
