@@ -6,9 +6,9 @@ class VirusScannerError(Exception):
     pass
 
 class VirusScanner:
-    def __init__(self):
+    def __init__(self, sock: str):
         try:
-            self.scanner = pyclamd.ClamdUnixSocket("/tmp/clamd.sock")
+            self.scanner = pyclamd.ClamdUnixSocket(sock)
             if not self.scanner.ping():
                 raise VirusScannerError("Failed to connect to clamd")
         except pyclamd.ConnectionError as ce:

@@ -24,7 +24,8 @@ def run_app():
     storage = LocalStorage(base_path="storage")
     service = ImageProcessingService(storage, None, repo, prepo)
     try:
-        scanner = VirusScanner()
+        sock = os.getenv("CLAMD_PATH", "/tmp/clamd.sock")
+        scanner = VirusScanner(sock)
     except VirusScannerError as vse:
         print(f"[FATAL] Failed to initialize virus scanner: {vse}")
         raise
