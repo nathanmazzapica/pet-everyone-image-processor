@@ -3,7 +3,7 @@ from typing import Optional
 
 from fastapi import Depends, FastAPI, Header, HTTPException, status, UploadFile, File
 
-from src.security.virus_scanner import VirusScanner
+from src.security.virus_scanner import VirusScanner, VirusScannerError
 from src.service.image_processing_service import ImageProcessingService
 from src.api.models import UploadResponse
 
@@ -50,10 +50,17 @@ class PetEveryoneImageProcessorAPI:
             try:
                 image_bytes = await file.read()
 
-                if signature := self.virus_scanner.scan(image_bytes):
+                try:
+                    signature = self.virus_scanner.scan(image_bytes)
+                    if signature is not None:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"Virus detected: {signature}",
+                        )
+                except VirusScannerError as vse:
                     raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"Virus detected: {signature}",
+                        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                        detail=f"Virus scanner error: {vse}",
                     )
 
 
