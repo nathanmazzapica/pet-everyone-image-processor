@@ -12,7 +12,7 @@ class TestVirusScanner:
     def test_clean_file_passes(self):
         with patch("src.security.virus_scanner.pyclamd.ClamdUnixSocket") as mock_clamd:
             mock_clamd.return_value = MagicMock(scan_stream=MagicMock(return_value=None))
-        scanner = VirusScanner()
+            scanner = VirusScanner()
         assert scanner.scan(CLEAN) is None
 
 
@@ -23,7 +23,7 @@ class TestVirusScanner:
                     return_value={'stream': ('FOUND', 'Eicar-Test-Signature')}
                 )
             )
-        scanner = VirusScanner()
+            scanner = VirusScanner()
         assert scanner.scan(EICAR) == 'Eicar-Test-Signature'
 
 
