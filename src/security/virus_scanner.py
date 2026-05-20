@@ -11,13 +11,13 @@ class VirusScanner:
             self.scanner = pyclamd.ClamdUnixSocket("/tmp/clamd.sock")
             if not self.scanner.ping():
                 raise VirusScannerError("Failed to connect to clamd")
-        except ConnectionError as ce:
+        except pyclamd.ConnectionError as ce:
             raise VirusScannerError("Failed to connect to clamd") from ce
 
     def scan(self, stream: bytes) -> Optional[str]:
         try:
             res = self.scanner.scan_stream(stream)
-        except ConnectionError as ce:
+        except pyclamd.ConnectionError as ce:
             raise VirusScannerError("Failed to connect to clamd") from ce
         except pyclamd.BufferTooLongError as bte:
             raise VirusScannerError("input buffer too large") from bte
