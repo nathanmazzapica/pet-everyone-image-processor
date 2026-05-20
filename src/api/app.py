@@ -42,13 +42,13 @@ class PetEveryoneImageProcessorAPI:
             file: UploadFile = File(...),
             _: None = Depends(self._verify_shared_secret),
         ) -> UploadResponse:
-            if file.size is not None and file.size > 25 * 1024 * 1024:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="File size exceeds 25MB",
-                )
             try:
                 image_bytes = await file.read()
+                if len(image_bytes) > 25 * 1024 * 1024:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="File size exceeds 25MB",
+                    )
 
                 try:
                     signature = self.virus_scanner.scan(image_bytes)
