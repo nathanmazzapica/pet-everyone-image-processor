@@ -2,6 +2,7 @@ import uuid
 from typing import Optional
 
 from fastapi import Depends, FastAPI, Header, HTTPException, status, UploadFile, File
+from starlette.concurrency import run_in_threadpool
 
 from src.security.virus_scanner import VirusScanner, VirusScannerError
 from src.service.image_processing_service import ImageProcessingService
@@ -51,7 +52,9 @@ class PetEveryoneImageProcessorAPI:
                     )
 
                 try:
-                    signature = self.virus_scanner.scan(image_bytes)
+                    signature = await run_in_threadpool(
+                        self.virus_scanner.scan, image_bytes
+                    )
                     if signature is not None:
                         raise HTTPException(
                             status_code=status.HTTP_400_BAD_REQUEST,
