@@ -8,3 +8,4 @@ pyvips
 wand
 python-multipart
 python-dotenv
+pyclamd

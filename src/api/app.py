@@ -2,7 +2,9 @@ import uuid
 from typing import Optional
 
 from fastapi import Depends, FastAPI, Header, HTTPException, status, UploadFile, File
+from starlette.concurrency import run_in_threadpool
 
+from src.security.virus_scanner import VirusScanner, VirusScannerError
 from src.service.image_processing_service import ImageProcessingService
 from src.api.models import UploadResponse
 
@@ -12,10 +14,12 @@ class PetEveryoneImageProcessorAPI:
         self,
         shared_secret: str,
         image_processing_service: ImageProcessingService,
+        virus_scanner: VirusScanner,
         title: str = "Pet Everyone Image Processor",
     ):
         self._shared_secret = shared_secret
         self._image_processing_service = image_processing_service
+        self._virus_scanner = virus_scanner
         self.app = FastAPI(title=title)
         self._register_routes()
 
@@ -41,6 +45,30 @@ class PetEveryoneImageProcessorAPI:
         ) -> UploadResponse:
             try:
                 image_bytes = await file.read()
+                if len(image_bytes) > ImageProcessingService.MAX_UPLOAD_SIZE:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=(
+                            f"File size exceeds "
+                            f"{ImageProcessingService.MAX_UPLOAD_SIZE // (1024 * 1024)}MB"
+                        ),
+                    )
+
+                try:
+                    signature = await run_in_threadpool(
+                        self._virus_scanner.scan, image_bytes
+                    )
+                    if signature is not None:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"Virus detected: {signature}",
+                        )
+                except VirusScannerError as vse:
+                    raise HTTPException(
+                        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                        detail=f"Virus scanner error: {vse}",
+                    )
+
 
                 image_id = uuid.uuid4()
                 self._image_processing_service.submit_upload(image_bytes, image_id)
