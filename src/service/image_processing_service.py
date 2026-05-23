@@ -4,6 +4,7 @@ from typing import Optional
 
 import pyvips
 
+from src.service.exceptions import JobRetryableError
 from src.repository.preprocess_job_repository import PreprocessJobRepository
 from src.service.exceptions import JobFailedError
 from src.models.job import Job
@@ -122,16 +123,16 @@ class ImageProcessingService:
         img = self.storage.open_bytes(job.input_url)
         try:
             converted_img = convert(img)
-        except Exception as e:
+        except InvalidImageFormatError as iife:
             self.preprocess_repository.update_status(job.id, JobStatus.FAILED)
-            raise JobFailedError("Failed to convert image") from e
+            raise JobFailedError("Invalid image format") from iife
 
         path = _preprocessed_path(_strip_path(job.input_url))
         try:
             self.storage.upload_bytes(path, converted_img)
         except OSError as e:
-            self.preprocess_repository.update_status(job.id, JobStatus.FAILED)
-            raise e
+            self.preprocess_repository.update_status(job.id, JobStatus.RETRY)
+            raise JobRetryableError("Failed to upload image") from e
         self.preprocess_repository.update_output_url(job.id, path)
         self.preprocess_repository.update_status(job.id, JobStatus.DONE)
 

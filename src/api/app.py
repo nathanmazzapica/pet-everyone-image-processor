@@ -4,7 +4,9 @@ from typing import Optional
 from fastapi import Depends, FastAPI, Header, HTTPException, status, UploadFile, File
 from starlette.concurrency import run_in_threadpool
 
-from src.security.virus_scanner import VirusScanner, VirusScannerError
+from src.service.exceptions import JobFailedError
+from src.security.virus_scanner import VirusScanner
+from src.security.exceptions import VirusScannerError
 from src.service.image_processing_service import ImageProcessingService
 from src.api.models import UploadResponse
 
@@ -71,7 +73,14 @@ class PetEveryoneImageProcessorAPI:
 
 
                 image_id = uuid.uuid4()
-                self._image_processing_service.submit_upload(image_bytes, image_id)
+                try:
+                    self._image_processing_service.submit_upload(image_bytes, image_id)
+                except JobFailedError as jfe:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Failed to process image: {jfe}",
+                    ) from jfe
+
                 return UploadResponse(image_id=str(image_id), status="queued")
             finally:
                 await file.close()

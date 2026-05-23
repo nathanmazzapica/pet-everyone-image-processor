@@ -14,6 +14,8 @@ class AspectRatio(Enum):
 
 
 def _get_aspect_ratio(img: pyvips.Image) -> AspectRatio:
+    if img.width == 0 or img.height == 0:
+        raise InvalidImageFormatError("Invalid image dimensions")
     raw = img.width / img.height
     if raw > 1:
         return AspectRatio.WIDE
