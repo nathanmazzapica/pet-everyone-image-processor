@@ -1,0 +1,2 @@
+class VirusScannerError(Exception):
+    pass
