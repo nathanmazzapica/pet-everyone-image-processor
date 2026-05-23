@@ -14,9 +14,6 @@ from src.security.clamav_virus_scanner import ClamVirusScanner, VirusScannerErro
 from src.security.mock_virus_scanner import MockVirusScanner
 from src.storage.storage import LocalStorage
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--no-virus-scan", action="store_true")
-args = parser.parse_args()
 
 def run_app():
     print("Starting app")
@@ -49,4 +46,7 @@ def _initialize_virus_scanner() -> VirusScanner:
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--no-virus-scan", action="store_true")
+    args = parser.parse_args()
     run_app()
