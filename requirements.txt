@@ -9,3 +9,5 @@ wand
 python-multipart
 python-dotenv
 pyclamd
+
+starlette

@@ -3,6 +3,10 @@ import os
 
 import pyvips
 
+class StorageError(Exception):
+    """Storage layer exception"""
+    pass
+
 class Storage(ABC):
     @staticmethod
     def _clean_filepath(filepath: str) -> str:
