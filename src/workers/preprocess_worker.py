@@ -21,6 +21,9 @@ class Worker:
         self.failed_jobs = 0 # for later accounting, not implemented atm
         self.run()
 
+    def _add_to_bg_removal_queue(self, path: str):
+        self.job_repo.create(path)
+
     def run(self):
         while True:
             job = self.repo.get_next_in_queue()
@@ -41,7 +44,7 @@ class Worker:
                 self.repo.update_status(job.id, JobStatus.FAILED)
                 continue
 
-            self.job_repo.create(path)
+            self._add_to_bg_removal_queue(path)
 
 
 
