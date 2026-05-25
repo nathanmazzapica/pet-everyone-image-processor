@@ -11,3 +11,8 @@ class JobFailedError(Exception):
 class JobRetryableError(Exception):
     """Exception raised when a job fails and is marked RETRY"""
     pass
+
+
+class InvalidImageFormatError(JobFailedError, ValueError):
+    """Exception raised when an image format cannot be detected """
+    pass

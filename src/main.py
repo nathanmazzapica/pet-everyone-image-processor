@@ -39,4 +39,4 @@ if __name__ == "__main__":
     base_path = os.getenv("LOCAL_BASE_PATH", ".")
     storage = LocalStorage(base_path)
     _ = repository
-    bg_service = background_remover.BackgroundRemover(repository, storage)
+    bg_service = background_remover.BackgroundRemover()

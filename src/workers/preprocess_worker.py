@@ -19,7 +19,9 @@ class Worker:
         self.proc = proc
         self.processed_jobs = 0
         self.failed_jobs = 0 # for later accounting, not implemented atm
-        self.run()
+
+    def _add_to_bg_removal_queue(self, path: str):
+        self.job_repo.create(path)
 
     def run(self):
         while True:
@@ -41,7 +43,7 @@ class Worker:
                 self.repo.update_status(job.id, JobStatus.FAILED)
                 continue
 
-            self.job_repo.create(path)
+            self._add_to_bg_removal_queue(path)
 
 
 
@@ -52,4 +54,5 @@ if __name__ == "__main__":
     s = LocalStorage(base_path="storage")
     pp = ImageProcessingService(s, None, jr, r)
     worker = Worker(r, jr, pp)
+    worker.run()
 
