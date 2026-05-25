@@ -6,12 +6,15 @@ import pytest
 from src.storage.storage import LocalStorage
 
 
-def test_init_creates_tmp_directory():
-    with tempfile.TemporaryDirectory() as base_path:
-        tmp_path = os.path.join(base_path, "tmp")
-        assert not os.path.exists(tmp_path)
+def test_init_creates_base_directory():
+    with tempfile.TemporaryDirectory() as temp_dir:
+        base_path = os.path.join(temp_dir, "storage")
+
+        assert not os.path.exists(base_path)
+
         LocalStorage(base_path=base_path)
-        assert os.path.isdir(tmp_path)
+
+        assert os.path.isdir(base_path)
 
 
 def test_init_succeeds_when_tmp_directory_already_exists():
