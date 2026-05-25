@@ -158,7 +158,7 @@ class ImageProcessingService:
         try:
             converted_img = self.background_remover.process(img)
         except Exception as e:
-            self.preprocess_repository.update_status(job.id, JobStatus.RETRY)
+            self.repository.update_status(job.id, JobStatus.RETRY)
             raise JobRetryableError("Failed to remove background") from e
 
         path = _final_path(_strip_path(job.input_url))
