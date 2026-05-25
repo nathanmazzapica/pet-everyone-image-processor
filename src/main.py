@@ -1,4 +1,5 @@
 import argparse
+import logging
 import os
 import sys
 import sqlite3
@@ -8,6 +9,8 @@ from PIL.Image import MIME
 from src.repository.job_repository import JobRepository
 from src.service import background_remover
 from src.storage.storage import LocalStorage
+
+logger = logging.getLogger(__name__)
 
 
 def create_repository(db_path: str) -> JobRepository:
@@ -28,12 +31,12 @@ if __name__ == "__main__":
 
     try:
         repository = create_repository("jobs.db")
-    except Exception as exc:
-        print(f"[FATAL] {exc}")
+    except Exception:
+        logger.exception("Failed to create repository")
         sys.exit(1)
 
     if args.storage == "s3":
-        print("[FATAL] S3 storage is not implemented yet.")
+        logger.critical("S3 storage is not implemented yet.")
         sys.exit(1)
 
     base_path = os.getenv("LOCAL_BASE_PATH", ".")

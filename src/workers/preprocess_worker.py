@@ -1,3 +1,4 @@
+import logging
 import sqlite3
 
 from src.models.status import JobStatus
@@ -7,6 +8,8 @@ from src.repository.job_repository import JobRepository
 from time import sleep
 
 from src.storage.storage import LocalStorage
+
+logger = logging.getLogger(__name__)
 
 
 class Worker:
@@ -27,19 +30,19 @@ class Worker:
         while True:
             job = self.repo.get_next_in_queue()
             if job is None:
-                print("No jobs to process")
+                logger.debug("No jobs to process")
                 sleep(1)
                 continue
             
             if not self.repo.lock_job(job.id):
-                print(f"Job {job.id} is already locked")
+                logger.warning("Job %s is already locked", job.id)
                 continue
 
             try:
-                print(f"Processing job {job.id}")
+                logger.info("Processing job %s", job.id)
                 path = self.proc.preprocess(job)
             except Exception as e:
-                print(f"Job {job.id} failed with error {e}")
+                logger.exception("Job %s failed", job.id)
                 self.repo.update_status(job.id, JobStatus.FAILED)
                 continue
 

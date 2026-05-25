@@ -1,4 +1,5 @@
 import argparse
+import logging
 import os
 import sqlite3
 
@@ -14,9 +15,11 @@ from src.security.clamav_virus_scanner import ClamVirusScanner, VirusScannerErro
 from src.security.mock_virus_scanner import MockVirusScanner
 from src.storage.storage import LocalStorage
 
+logger = logging.getLogger(__name__)
+
 
 def run_app():
-    print("Starting app")
+    logger.info("Starting app")
     load_dotenv()
     secret = os.getenv("PE_SHARED_SECRET")
     if secret is None:
@@ -32,15 +35,15 @@ def run_app():
     uvicorn.run(api.app, host="0.0.0.0", port=port)
 
 def _initialize_virus_scanner() -> VirusScanner:
-    print("Initializing virus scanner")
+    logger.info("Initializing virus scanner")
     mock = args.no_virus_scan
     if mock:
         return MockVirusScanner()
     try :
         sock = os.getenv("CLAMD_PATH", "/tmp/clamd.sock")
         return ClamVirusScanner(sock)
-    except VirusScannerError as vse:
-        print(f"[FATAL] Failed to initialize virus scanner: {vse}")
+    except VirusScannerError:
+        logger.exception("Failed to initialize virus scanner")
         raise
 
 
