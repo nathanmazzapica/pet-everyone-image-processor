@@ -51,6 +51,10 @@ class Worker:
 
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO,
+        format="[%(asctime)s] [PID %(process)d] %(levelname)s %(name)s: %(message)s",
+    )
     conn = sqlite3.connect("jobs.db")
     r = PreprocessJobRepository(conn)
     jr = JobRepository(conn)
