@@ -46,6 +46,19 @@ def _is_supported_header(h: bytes) -> bool:
 
     return False
 
+"""
+Design note:
+    This smells bad. Using one service to do three things isn't great. Especially when
+    each operation is only ever used by one type of worker
+    
+    The api only ever uses `submit_upload()`
+    pre_process worker only uses `preprocess()`
+    background removal worker -> `remove_background()`
+    
+    This needs to be broken down into three services.
+    
+    I will get to this in a separate branch
+"""
 
 class ImageProcessingService:
     MAX_UPLOAD_SIZE = 1024 * 1024 * 25
@@ -138,5 +151,23 @@ class ImageProcessingService:
 
         return path
 
-    def run_background_removal(self, job_id: int):
-        raise NotImplementedError
+    def remove_background(self, job: Job) -> str:
+        if self.background_remover is None:
+            raise JobFailedError("Background removal is not available")
+        img = self.storage.open_bytes(job.input_url)
+        try:
+            converted_img = self.background_remover.process(img)
+        except Exception as e:
+            self.preprocess_repository.update_status(job.id, JobStatus.RETRY)
+            raise JobRetryableError("Failed to remove background") from e
+
+        path = _final_path(_strip_path(job.input_url))
+        try:
+            self.storage.upload_bytes(path, converted_img)
+        except OSError as e:
+            self.repository.update_status(job.id, JobStatus.RETRY)
+            raise JobRetryableError("Failed to upload image") from e
+        self.repository.update_output_url(job.id, path)
+        self.repository.update_status(job.id, JobStatus.DONE)
+
+        return path
