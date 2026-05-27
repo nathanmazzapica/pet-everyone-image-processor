@@ -2,7 +2,7 @@ import logging
 import sqlite3
 
 from src.models.status import JobStatus
-from src.service.image_processing_service import ImageProcessingService
+from src.service.preprocess_service import PreprocessService
 from src.repository.preprocess_job_repository import PreprocessJobRepository
 from src.repository.job_repository import JobRepository
 from time import sleep
@@ -16,7 +16,7 @@ class Worker:
 
     def __init__(self, repo: PreprocessJobRepository,
                  job_repo: JobRepository,
-                 proc: ImageProcessingService):
+                 proc: PreprocessService):
         self.repo = repo
         self.job_repo = job_repo
         self.proc = proc
@@ -59,7 +59,7 @@ if __name__ == "__main__":
     r = PreprocessJobRepository(conn)
     jr = JobRepository(conn)
     s = LocalStorage(base_path="storage")
-    pp = ImageProcessingService(s, None, jr, r)
+    pp = PreprocessService(s, r)
     worker = Worker(r, jr, pp)
     worker.run()
 

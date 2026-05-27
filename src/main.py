@@ -7,7 +7,7 @@ import sqlite3
 from PIL.Image import MIME
 
 from src.repository.job_repository import JobRepository
-from src.service import background_remover
+from src.service.processors import background_remover
 from src.storage.storage import LocalStorage
 
 logger = logging.getLogger(__name__)

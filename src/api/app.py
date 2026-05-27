@@ -7,7 +7,7 @@ from starlette.concurrency import run_in_threadpool
 from src.service.exceptions import JobFailedError
 from src.security.virus_scanner import VirusScanner
 from src.security.exceptions import VirusScannerError
-from src.service.image_processing_service import ImageProcessingService
+from src.service.upload_service import UploadService
 from src.api.models import UploadResponse
 
 
@@ -15,12 +15,12 @@ class PetEveryoneImageProcessorAPI:
     def __init__(
         self,
         shared_secret: str,
-        image_processing_service: ImageProcessingService,
+        upload_service: UploadService,
         virus_scanner: VirusScanner,
         title: str = "Pet Everyone Image Processor",
     ):
         self._shared_secret = shared_secret
-        self._image_processing_service = image_processing_service
+        self._upload_service = upload_service
         self._virus_scanner = virus_scanner
         self.app = FastAPI(title=title)
         self._register_routes()
@@ -47,12 +47,12 @@ class PetEveryoneImageProcessorAPI:
         ) -> UploadResponse:
             try:
                 image_bytes = await file.read()
-                if len(image_bytes) > ImageProcessingService.MAX_UPLOAD_SIZE:
+                if len(image_bytes) > UploadService.MAX_UPLOAD_SIZE:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail=(
                             f"File size exceeds "
-                            f"{ImageProcessingService.MAX_UPLOAD_SIZE // (1024 * 1024)}MB"
+                            f"{UploadService.MAX_UPLOAD_SIZE // (1024 * 1024)}MB"
                         ),
                     )
 
@@ -74,7 +74,7 @@ class PetEveryoneImageProcessorAPI:
 
                 image_id = uuid.uuid4()
                 try:
-                    self._image_processing_service.submit_upload(image_bytes, image_id)
+                    self._upload_service.submit_upload(image_bytes, image_id)
                 except JobFailedError as jfe:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
