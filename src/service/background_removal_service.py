@@ -3,8 +3,8 @@ from typing import Optional
 from src.repository.job_repository import JobRepository
 from src.models.job import Job
 from src.models.status import JobStatus
-from src.service.exceptions import JobRetryableError, JobFailedError, FatalServiceError
-from src.service.processors.background_remover import BackgroundRemover
+from src.service.exceptions import JobRetryableError, JobFailedError, FatalServiceError, InvalidImageFormatError
+from src.service.processors.background_remover import BackgroundRemover, BackgroundRemoverError, BackgroundRemoverSetupError
 from src.storage.storage import Storage, StorageError, FatalStorageUploadError, StorageConfigurationError
 
 
@@ -39,6 +39,10 @@ class BackgroundRemovalService:
 
         try:
             converted_img = self.background_remover.process(img)
+        except InvalidImageFormatError as e:
+            raise JobFailedError("Invalid image format") from e
+        except BackgroundRemoverSetupError as e:
+            raise FatalServiceError("Background removal setup error") from e
         except Exception as e:
             raise JobRetryableError("Failed to remove background") from e
 

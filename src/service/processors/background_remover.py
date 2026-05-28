@@ -25,9 +25,10 @@ class BackgroundRemover:
         except wbg_exception.ConfigurationError as e:
             raise BackgroundRemoverSetupError("Failed to setup background remover") from e
         except wbg_exception.ModelNotFoundError as e:
-            raise BackgroundRemoverSetupError("Background remover not found") from e
+            raise BackgroundRemoverSetupError("Background remover model not found") from e
 
         buffer = BytesIO()
+        # note: no exception here, since neither of the exceptions raised by 'save' apply to a buffer
         result.save(buffer, format="WEBP")
 
         return buffer.getvalue()
