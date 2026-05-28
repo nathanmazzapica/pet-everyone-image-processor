@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import os
 
+import errno
 import pyvips
 
 class StorageError(Exception):
