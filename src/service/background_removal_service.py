@@ -3,9 +3,9 @@ from typing import Optional
 from src.repository.job_repository import JobRepository
 from src.models.job import Job
 from src.models.status import JobStatus
-from src.service.exceptions import JobRetryableError, JobFailedError
+from src.service.exceptions import JobRetryableError, JobFailedError, FatalServiceError
 from src.service.processors.background_remover import BackgroundRemover
-from src.storage.storage import Storage
+from src.storage.storage import Storage, StorageError, FatalStorageUploadError, StorageConfigurationError
 
 
 def _final_path(img_uuid: str) -> str:
@@ -28,21 +28,29 @@ class BackgroundRemovalService:
 
     def remove_background(self, job: Job) -> str:
         if self.background_remover is None:
-            raise JobFailedError("Background removal is not available")
-        img = self.storage.open_bytes(job.input_url)
+            raise FatalServiceError("Background removal is not available")
+
+        try:
+            img = self.storage.open_bytes(job.input_url)
+        except StorageError as e:
+            raise JobFailedError("Failed to open image") from e
+        except MemoryError as e:
+            raise FatalServiceError("Out of memory") from e
+
         try:
             converted_img = self.background_remover.process(img)
         except Exception as e:
-            self.repository.update_status(job.id, JobStatus.RETRY)
             raise JobRetryableError("Failed to remove background") from e
 
         path = _final_path(_strip_path(job.input_url))
         try:
             self.storage.upload_bytes(path, converted_img)
+        except StorageConfigurationError as e:
+            raise FatalServiceError("Storage configuration error") from e
+        except FatalStorageUploadError as e:
+            raise FatalServiceError("Image could not be uploaded") from e
+            # TODO: determine what to actually do when storage is full
         except OSError as e:
-            self.repository.update_status(job.id, JobStatus.RETRY)
             raise JobRetryableError("Failed to upload image") from e
-        self.repository.update_output_url(job.id, path)
-        self.repository.update_status(job.id, JobStatus.DONE)
 
         return path
