@@ -16,3 +16,7 @@ class JobRetryableError(Exception):
 class InvalidImageFormatError(JobFailedError, ValueError):
     """Exception raised when an image format cannot be detected """
     pass
+
+class FatalServiceError(Exception):
+    """Exception raised when a fatal error occurs in the service"""
+    pass

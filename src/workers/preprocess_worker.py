@@ -55,6 +55,8 @@ if __name__ == "__main__":
         level=logging.INFO,
         format="[%(asctime)s] [PID %(process)d] %(levelname)s %(name)s: %(message)s",
     )
+    logging.getLogger("pyvips").setLevel(logging.WARNING)
+    logging.getLogger("PIL").setLevel(logging.WARNING)
     conn = sqlite3.connect("jobs.db")
     r = PreprocessJobRepository(conn)
     jr = JobRepository(conn)

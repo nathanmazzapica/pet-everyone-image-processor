@@ -1,8 +1,7 @@
 from src.repository.preprocess_job_repository import PreprocessJobRepository
 from src.models.job import Job
 from src.models.status import JobStatus
-from src.service.exceptions import JobRetryableError, JobFailedError
-from src.service.conversion_exceptions import InvalidImageFormatError
+from src.service.exceptions import JobRetryableError, JobFailedError, InvalidImageFormatError
 from src.service.processors.image_converter import convert
 from src.storage.storage import Storage
 

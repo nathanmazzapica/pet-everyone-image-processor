@@ -5,11 +5,12 @@ import pyvips
 from src.service.exceptions import JobFailedError
 from src.repository.preprocess_job_repository import PreprocessJobRepository
 from src.models.status import JobStatus
-from src.service.conversion_exceptions import InvalidImageFormatError
+from src.service.exceptions import InvalidImageFormatError
 from src.storage.storage import Storage
 
 
-def _original_path(img_uuid: str) -> str:
+def _object_key(img_uuid: str) -> str:
+    """Returns an object key for the original image."""
     return f"uploads/original/{img_uuid}"
 
 
@@ -33,11 +34,20 @@ class UploadService:
 
     def __init__(self,
                  storage: Storage,
-                 preprocess_repository: PreprocessJobRepository):
+                 repo: PreprocessJobRepository):
         self.storage = storage
-        self.preprocess_repository = preprocess_repository
+        self.repo = repo
 
     def _validate_upload(self, img: bytes) -> None:
+        """
+        Validates the image data.
+
+        Args:
+            img (bytes): The image data to validate
+
+        Raises:
+            InvalidImageFormatError: if the image is invalid
+        """
         if len(img) > self.MAX_UPLOAD_SIZE:
             raise InvalidImageFormatError("Image is too large")
 
@@ -51,21 +61,34 @@ class UploadService:
             raise InvalidImageFormatError("Invalid image format") from e
 
     def submit_upload(self, img: bytes, img_id: uuid.UUID) -> str:
+        """
+        Submit an image for processing and return the path to the stored image.
+
+        Args:
+            img (bytes): The image data to process
+            img_id (uuid.UUID): The unique identifier for the image
+
+        Returns:
+            str: the path to the processed image
+
+        Raises:
+            JobFailedError: if the image is invalid or processing fails
+        """
         try:
             self._validate_upload(img)
         except InvalidImageFormatError as e:
             raise JobFailedError("Invalid image") from e
 
         img_uuid = str(img_id)
-        path = _original_path(img_uuid)
-        job_id = self.preprocess_repository.create(path)
+        path = _object_key(img_uuid)
+        job_id = self.repo.create(path)
         if job_id is None:
-            raise Exception("Failed to create job")
+            raise JobFailedError("Failed to create job")
 
         try:
             self.storage.upload_bytes(path, img)
         except OSError as e:
-            self.preprocess_repository.update_status(job_id, JobStatus.FAILED)
+            self.repo.update_status(job_id, JobStatus.FAILED)
             raise JobFailedError("Failed to upload image") from e
 
         return path
