@@ -90,7 +90,7 @@ class TestRemoveBackground:
         mock_storage.open_bytes.return_value = FAKE_IMAGE_BYTES
         mock_remover.process.side_effect = RuntimeError("model failure")
 
-        with pytest.raises(JobRetryableError):
+        with pytest.raises(FatalServiceError):
             service.remove_background(make_job())
 
     def test_retryable_error_wraps_remover_exception(self, service, mock_storage, mock_remover):
@@ -98,7 +98,7 @@ class TestRemoveBackground:
         original = RuntimeError("model failure")
         mock_remover.process.side_effect = original
 
-        with pytest.raises(JobRetryableError) as exc_info:
+        with pytest.raises(FatalServiceError) as exc_info:
             service.remove_background(make_job())
 
         assert exc_info.value.__cause__ is original
