@@ -5,7 +5,7 @@ import pyvips
 from src.service.exceptions import JobFailedError
 from src.repository.preprocess_job_repository import PreprocessJobRepository
 from src.models.status import JobStatus
-from src.service.conversion_exceptions import InvalidImageFormatError
+from src.service.exceptions import InvalidImageFormatError
 from src.storage.storage import Storage
 
 

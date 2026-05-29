@@ -3,7 +3,7 @@ The image converter service handles converting input images and resizing them as
 """
 from enum import Enum
 
-from src.service.conversion_exceptions import InvalidImageFormatError
+from src.service.exceptions import InvalidImageFormatError
 from src.service.exceptions import JobFailedError
 import pyvips
 
