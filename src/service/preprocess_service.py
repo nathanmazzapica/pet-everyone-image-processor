@@ -1,9 +1,8 @@
 from src.repository.preprocess_job_repository import PreprocessJobRepository
 from src.models.job import Job
-from src.models.status import JobStatus
-from src.service.exceptions import JobRetryableError, JobFailedError, InvalidImageFormatError
+from src.service.exceptions import JobRetryableError, JobFailedError, InvalidImageFormatError, FatalServiceError
 from src.service.processors.image_converter import convert
-from src.storage.storage import Storage
+from src.storage.storage import Storage, StorageError, FatalStorageUploadError, StorageConfigurationError
 
 
 def _preprocessed_path(img_uuid: str) -> str:
@@ -23,20 +22,28 @@ class PreprocessService:
         self.preprocess_repository = preprocess_repository
 
     def preprocess(self, job: Job) -> str:
-        img = self.storage.open_bytes(job.input_url)
+        try:
+            img = self.storage.open_bytes(job.input_url)
+        except StorageError as e:
+            raise JobFailedError("Failed to open image") from e
+        except MemoryError as e:
+            raise FatalServiceError("Out of memory") from e
+
         try:
             converted_img = convert(img)
         except InvalidImageFormatError as iife:
-            self.preprocess_repository.update_status(job.id, JobStatus.FAILED)
             raise JobFailedError("Invalid image format") from iife
+        except Exception as e:
+            raise FatalServiceError("Unknown preprocessing error") from e
 
         path = _preprocessed_path(_strip_path(job.input_url))
         try:
             self.storage.upload_bytes(path, converted_img)
+        except StorageConfigurationError as e:
+            raise FatalServiceError("Storage configuration error") from e
+        except FatalStorageUploadError as e:
+            raise FatalServiceError("Image could not be uploaded") from e
         except OSError as e:
-            self.preprocess_repository.update_status(job.id, JobStatus.RETRY)
             raise JobRetryableError("Failed to upload image") from e
-        self.preprocess_repository.update_output_url(job.id, path)
-        self.preprocess_repository.update_status(job.id, JobStatus.DONE)
 
         return path
