@@ -47,6 +47,7 @@ class Worker():
                 if job.attempt_count >= 3:
                     logger.error("Job %s failed too many times, marking as failed", job.id)
                     self.repo.update_status(job.id, JobStatus.FAILED)
+                    self.failed_jobs += 1
                     continue
                 logger.warning("Job %s failed, retrying", job.id)
                 self.repo.update_attempt_count(job.id, job.attempt_count + 1)
