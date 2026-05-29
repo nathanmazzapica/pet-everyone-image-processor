@@ -44,7 +44,7 @@ class BackgroundRemovalService:
         except BackgroundRemoverSetupError as e:
             raise FatalServiceError("Background removal setup error") from e
         except Exception as e:
-            raise JobRetryableError("Failed to remove background") from e
+            raise FatalServiceError("Unknown background removal error") from e
 
         path = _final_path(_strip_path(job.input_url))
         try:
