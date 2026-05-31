@@ -24,6 +24,8 @@ class PreprocessService:
     def preprocess(self, job: Job) -> str:
         try:
             img = self.storage.open_bytes(job.input_url)
+        except StorageConfigurationError as e:
+            raise FatalServiceError("Storage configuration error") from e
         except StorageError as e:
             raise JobFailedError("Failed to open image") from e
         except MemoryError as e:

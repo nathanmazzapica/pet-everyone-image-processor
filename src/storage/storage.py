@@ -83,6 +83,8 @@ class LocalStorage(Storage):
                 return f.read()
         except (FileNotFoundError, IsADirectoryError) as e:
             raise AssetNotFoundError(f"Asset {filepath} could not be located") from e
+        except PermissionError as pe:
+            raise StorageConfigurationError(f"Invalid permissions for {self._asset_path(filepath)}!") from pe
         except MemoryError:
             raise
         except OSError as ose:

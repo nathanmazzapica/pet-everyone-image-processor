@@ -2,7 +2,6 @@ from typing import Optional
 
 from src.repository.job_repository import JobRepository
 from src.models.job import Job
-from src.models.status import JobStatus
 from src.service.exceptions import JobRetryableError, JobFailedError, FatalServiceError, InvalidImageFormatError
 from src.service.processors.background_remover import BackgroundRemover, BackgroundRemoverError, BackgroundRemoverSetupError
 from src.storage.storage import Storage, StorageError, FatalStorageUploadError, StorageConfigurationError
@@ -32,6 +31,8 @@ class BackgroundRemovalService:
 
         try:
             img = self.storage.open_bytes(job.input_url)
+        except StorageConfigurationError as e:
+            raise FatalServiceError("Storage configuration error") from e
         except StorageError as e:
             raise JobFailedError("Failed to open image") from e
         except MemoryError as e:
