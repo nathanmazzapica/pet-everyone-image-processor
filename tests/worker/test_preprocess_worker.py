@@ -20,6 +20,7 @@ def mock_repo(mocker):
     return repo
 
 
+
 @pytest.fixture
 def mock_job_repo(mocker):
     return mocker.MagicMock()
