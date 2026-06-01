@@ -4,7 +4,7 @@ from typing import Optional
 from fastapi import Depends, FastAPI, Header, HTTPException, status, UploadFile, File
 from starlette.concurrency import run_in_threadpool
 
-from src.service.exceptions import JobFailedError
+from src.service.exceptions import FatalServiceError, JobFailedError
 from src.security.virus_scanner import VirusScanner
 from src.security.exceptions import VirusScannerError
 from src.service.upload_service import UploadService
@@ -75,6 +75,11 @@ class PetEveryoneImageProcessorAPI:
                 image_id = uuid.uuid4()
                 try:
                     self._upload_service.submit_upload(image_bytes, image_id)
+                except FatalServiceError as fse:
+                    raise HTTPException(
+                        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                        detail=f"Service unavailable: {fse}",
+                    ) from fse
                 except JobFailedError as jfe:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
