@@ -11,7 +11,7 @@ CREATE TABLE job
                        'REJECTED'
             )
         ),
-    input_url     TEXT    NOT NULL,
+    input_url     TEXT    NOT NULL, -- TODO: rename to input_key/output_key
     output_url    TEXT,
     attempt_count INTEGER NOT NULL DEFAULT 0,
     last_locked   REAL,

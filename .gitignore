@@ -28,7 +28,8 @@ htmlcov/
 # OS files
 .DS_Store
 
-/tests/resources/**
+/tests/resources/tmp
+/tests/resources/uploads/**
 
 !tests/resources
 !tests/resources/uploads/preprocessed/sample_preprocessed
