@@ -32,6 +32,9 @@ htmlcov/
 /tests/resources/uploads/**
 
 !tests/resources
+!tests/resources/uploads
+!tests/resources/uploads/original
+!tests/resources/uploads/preprocessed
 !tests/resources/uploads/preprocessed/sample_preprocessed
 !tests/resources/uploads/original/sample_original
 
