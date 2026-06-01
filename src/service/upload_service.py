@@ -2,11 +2,11 @@ import uuid
 
 import pyvips
 
-from src.service.exceptions import JobFailedError
+from src.service.exceptions import FatalServiceError, JobFailedError
 from src.repository.preprocess_job_repository import PreprocessJobRepository
 from src.models.status import JobStatus
 from src.service.exceptions import InvalidImageFormatError
-from src.storage.storage import Storage
+from src.storage.storage import FatalStorageUploadError, Storage
 
 
 def _object_key(img_uuid: str) -> str:
@@ -73,6 +73,7 @@ class UploadService:
 
         Raises:
             JobFailedError: if the image is invalid or processing fails
+            FatalServiceError: if a fatal storage error occurs (e.g. disk full)
         """
         try:
             self._validate_upload(img)
@@ -87,6 +88,9 @@ class UploadService:
 
         try:
             self.storage.upload_bytes(path, img)
+        except FatalStorageUploadError as e:
+            self.repo.update_status(job_id, JobStatus.FAILED)
+            raise FatalServiceError(f"Fatal storage error: {e}") from e
         except OSError as e:
             self.repo.update_status(job_id, JobStatus.FAILED)
             raise JobFailedError("Failed to upload image") from e
