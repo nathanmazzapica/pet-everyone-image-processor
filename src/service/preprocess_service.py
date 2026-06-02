@@ -2,7 +2,8 @@ from src.repository.preprocess_job_repository import PreprocessJobRepository
 from src.models.job import Job
 from src.service.exceptions import JobRetryableError, JobFailedError, InvalidImageFormatError, FatalServiceError
 from src.service.processors.image_converter import convert
-from src.storage.storage import Storage, StorageError, FatalStorageUploadError, StorageConfigurationError
+from src.storage.storage import Storage, StorageError, FatalStorageUploadError, StorageConfigurationError, \
+    AssetNotFoundError
 
 
 def _preprocessed_path(img_uuid: str) -> str:
@@ -24,6 +25,8 @@ class PreprocessService:
     def preprocess(self, job: Job) -> str:
         try:
             img = self.storage.open_bytes(job.input_url)
+        except AssetNotFoundError as e:
+            raise JobFailedError("Image not found") from e
         except StorageConfigurationError as e:
             raise FatalServiceError("Storage configuration error") from e
         except StorageError as e:
