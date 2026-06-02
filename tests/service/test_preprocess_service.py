@@ -4,7 +4,7 @@ from src.models.job import Job
 from src.models.status import JobStatus
 from src.service.preprocess_service import PreprocessService
 from src.service.exceptions import JobFailedError, JobRetryableError, FatalServiceError, InvalidImageFormatError
-from src.storage.storage import StorageError, FatalStorageUploadError, StorageConfigurationError
+from src.storage.storage import StorageError, FatalStorageUploadError, StorageConfigurationError, AssetNotFoundError
 
 
 FAKE_INPUT_URL = "uploads/original/abc123"
@@ -100,4 +100,10 @@ class TestPreprocess:
         mock_storage.upload_bytes.side_effect = FatalStorageUploadError("disk full")
 
         with pytest.raises(FatalServiceError):
+            service.preprocess(make_job())
+
+    def test_raises_job_failed_error_when_storage_open_raises_asset_not_found_error(self, service, mock_storage, mocker):
+        mock_storage.open_bytes.side_effect = AssetNotFoundError("file not found")
+        mocker.patch("src.service.preprocess_service.convert", return_value=FAKE_RESULT_BYTES)
+        with pytest.raises(JobFailedError):
             service.preprocess(make_job())
