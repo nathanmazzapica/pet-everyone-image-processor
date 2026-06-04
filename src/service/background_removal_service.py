@@ -30,7 +30,7 @@ class BackgroundRemovalService:
             raise FatalServiceError("Background removal is not available")
 
         try:
-            img = self.storage.open_bytes(job.input_url)
+            img = self.storage.open_bytes(job.input_key)
         except StorageConfigurationError as e:
             raise FatalServiceError("Storage configuration error") from e
         except StorageError as e:
@@ -47,7 +47,7 @@ class BackgroundRemovalService:
         except Exception as e:
             raise FatalServiceError("Unknown background removal error") from e
 
-        path = _final_path(_strip_path(job.input_url))
+        path = _final_path(_strip_path(job.input_key))
         try:
             self.storage.upload_bytes(path, converted_img)
         except StorageConfigurationError as e:

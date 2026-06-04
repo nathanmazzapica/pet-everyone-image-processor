@@ -24,7 +24,7 @@ class PreprocessService:
 
     def preprocess(self, job: Job) -> str:
         try:
-            img = self.storage.open_bytes(job.input_url)
+            img = self.storage.open_bytes(job.input_key)
         except AssetNotFoundError as e:
             raise JobFailedError("Image not found") from e
         except StorageConfigurationError as e:
@@ -41,7 +41,7 @@ class PreprocessService:
         except Exception as e:
             raise FatalServiceError("Unknown preprocessing error") from e
 
-        path = _preprocessed_path(_strip_path(job.input_url))
+        path = _preprocessed_path(_strip_path(job.input_key))
         try:
             self.storage.upload_bytes(path, converted_img)
         except StorageConfigurationError as e:
