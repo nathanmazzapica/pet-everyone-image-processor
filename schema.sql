@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS Job (
             'PREPROCESS',
             'BACKGROUND_REMOVAL'
         )),
-    job_status TEXT NOT NULL CHECK (job_status IN (
+    job_status TEXT NOT NULL DEFAULT 'QUEUED' CHECK (job_status IN (
             'QUEUED',
             'PROCESSING',
             'DONE',
