@@ -111,6 +111,47 @@ class Repository:
         except sqlite3.DatabaseError as e:
             raise FatalDatabaseError(f"Failed to complete job {job_id}") from e
 
+    def complete_preprocess_job(self, job_id: int, output_key: str, pet_id: uuid.UUID) -> int:
+        try:
+            with self.conn:
+                cur = self.conn.execute(
+                    "UPDATE Job SET job_status = ?, output_key = ? WHERE job_id = ?",
+                    (JobStatus.DONE.value, output_key, job_id),
+                )
+                if cur.rowcount == 0:
+                    raise JobNotFoundError(f"Job {job_id} not found")
+                self.conn.execute(
+                    "INSERT INTO JobOutbox (job_id) VALUES (?)", (job_id,)
+                )
+                res = self.conn.execute(
+                    "INSERT INTO Job (job_type, job_status, input_key, pet_id) VALUES (?, ?, ?, ?)",
+                    (JobType.BACKGROUND_REMOVAL.value, JobStatus.QUEUED.value, output_key, str(pet_id)),
+                )
+                return res.lastrowid
+        except sqlite3.OperationalError as e:
+            raise FatalDatabaseError("Malformed SQL") from e
+        except sqlite3.ProgrammingError as e:
+            raise FatalDatabaseError("Database schema mismatch") from e
+        except sqlite3.DatabaseError as e:
+            raise FatalDatabaseError("Corrupt database file") from e
+
+    def retry_job(self, job_id: int, retry_delay: float) -> bool:
+        """Requeues a PROCESSING job, scheduling it no earlier than now + retry_delay seconds."""
+        try:
+            with self.conn:
+                cur = self.conn.execute(
+                    """UPDATE Job
+                       SET job_status = ?,
+                           ready_at   = strftime('%Y-%m-%dT%H:%M:%fZ', 'now', ? || ' seconds')
+                       WHERE job_id = ? AND job_status = ?""",
+                    (JobStatus.QUEUED.value, retry_delay, job_id, JobStatus.PROCESSING.value),
+                )
+                return cur.rowcount == 1
+        except sqlite3.OperationalError as e:
+            raise FatalDatabaseError("Malformed SQL") from e
+        except sqlite3.DatabaseError as e:
+            raise FatalDatabaseError(f"Failed to retry job {job_id}") from e
+
     def fail_job(self, job_id: int, err_no: int) -> bool:
         """Sets status to FAILED, inserts a FailedJobs record, and inserts a JobOutbox record — all in one transaction."""
         try:
@@ -172,7 +213,7 @@ class Repository:
         except sqlite3.DatabaseError as e:
             raise FatalDatabaseError(f"Failed to get job {job_id}") from e
 
-    def get_next_in_queue(self, job_type: JobType) -> Optional[Job]:
+    def __get_next_in_queue(self, job_type: JobType) -> Optional[Job]:
         """Atomically dequeues the next eligible job: SELECT + lock UPDATE in one transaction."""
         try:
             with self.conn:
@@ -203,6 +244,12 @@ class Repository:
             raise FatalDatabaseError("Malformed SQL") from e
         except sqlite3.DatabaseError as e:
             raise FatalDatabaseError("Failed to get next job from queue") from e
+
+    def next_preprocess_job(self) -> Optional[Job]:
+        return self.__get_next_in_queue(JobType.PREPROCESS)
+
+    def next_background_removal_job(self) -> Optional[Job]:
+        return self.__get_next_in_queue(JobType.BACKGROUND_REMOVAL)
 
     def set_output_key(self, job_id: int, output_key: str) -> bool:
         try:
