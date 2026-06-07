@@ -2,13 +2,13 @@ from withoutbg import WithoutBG, exceptions as wbg_exception
 
 from io import BytesIO
 
-from src.service.exceptions import JobFailedError, JobRetryableError, InvalidImageFormatError
+from src.service.exceptions import InvalidImageFormatError
 
 
 class BackgroundRemoverError(Exception):
     pass
 
-class BackgroundRemoverSetupError(JobRetryableError):
+class BackgroundRemoverSetupError(BackgroundRemoverError):
     pass
 
 class BackgroundRemover:
