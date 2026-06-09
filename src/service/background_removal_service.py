@@ -1,7 +1,6 @@
 from typing import Optional
 
 from src.models.errors import ErrorCode
-from src.repository.job_repository import JobRepository
 from src.models.job import Job
 from src.service.exceptions import JobFailedError, FatalServiceError, InvalidImageFormatError
 from src.service.processors.background_remover import BackgroundRemover, BackgroundRemoverError, BackgroundRemoverSetupError

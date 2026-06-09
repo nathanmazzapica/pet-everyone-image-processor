@@ -1,4 +1,3 @@
-from src.repository.preprocess_job_repository import PreprocessJobRepository
 from src.models.job import Job
 from src.models.errors import ErrorCode
 from src.service.exceptions import JobFailedError, InvalidImageFormatError, FatalServiceError
