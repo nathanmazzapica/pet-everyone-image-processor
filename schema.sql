@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS Job (
 );
 
 CREATE INDEX IF NOT EXISTS idx_job_worker_poll
-    ON Job (job_status, ready_at)
+    ON Job (job_type, job_status, ready_at)
     WHERE job_status = 'QUEUED';
 
 CREATE INDEX IF NOT EXISTS idx_job_stale_lock
