@@ -4,6 +4,20 @@ CREATE TABLE IF NOT EXISTS FailureCodes (
     err_desc TEXT NOT NULL
 );
 
+INSERT OR IGNORE INTO FailureCodes (err_no, err_desc) VALUES
+    (1,  'INVALID_FILE_FORMAT'),
+    (2,  'VIRUS_DETECTED'),
+    (3,  'MODERATION_FAILED'),
+    (4,  'STORAGE_ERROR'),
+    (5,  'DISK_FULL'),
+    (6,  'PERMISSION_DENIED'),
+    (7,  'MODEL_INIT_FAILED'),
+    (8,  'INVALID_JOB'),
+    (9,  'OUT_OF_MEMORY'),
+    (10, 'STORAGE_CONFIG_ERROR'),
+    (11, 'ASSET_NOT_FOUND'),
+    (99, 'UNKNOWN');
+
 CREATE TABLE IF NOT EXISTS Job (
     job_id INTEGER PRIMARY KEY AUTOINCREMENT,
     job_type TEXT NOT NULL CHECK (job_type IN (
