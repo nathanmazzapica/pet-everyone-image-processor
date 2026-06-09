@@ -6,8 +6,8 @@ from src.storage.storage import Storage, StorageError, FatalStorageUploadError, 
     AssetNotFoundError
 
 
-def _preprocessed_path(img_uuid: str) -> str:
-    return f"uploads/preprocessed/{img_uuid}"
+def _preprocessed_path(img_uuid: str, pet_id: str) -> str:
+    return f"uploads/pet_images/{pet_id}/{img_uuid}/preprocessed.webp"
 
 
 def _strip_path(path: str) -> str:
@@ -36,7 +36,7 @@ class PreprocessService:
         except InvalidImageFormatError as iife:
             raise JobFailedError("Invalid image format", status_code=ErrorCode.INVALID_FILE_FORMAT) from iife
 
-        path = _preprocessed_path(_strip_path(job.input_key))
+        path = _preprocessed_path(str(job.image_id), str(job.pet_id))
         try:
             self.storage.upload_bytes(path, converted_img)
         except StorageConfigurationError as e:

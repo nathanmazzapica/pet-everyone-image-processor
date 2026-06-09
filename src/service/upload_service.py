@@ -10,7 +10,7 @@ from src.storage.storage import FatalStorageUploadError, Storage
 
 def _object_key(img_uuid: str, pet_id: str) -> str:
     """Returns an object key for the original image."""
-    return f"uploads/pet_images/{pet_id}/original/{img_uuid}"
+    return f"uploads/pet_images/{pet_id}/{img_uuid}/original"
 
 def _is_supported_header(h: bytes) -> bool:
     if h.startswith(b"\x89PNG\r\n\x1a\n"):

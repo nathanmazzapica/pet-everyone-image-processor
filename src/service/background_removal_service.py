@@ -7,8 +7,8 @@ from src.service.processors.background_remover import BackgroundRemover, Backgro
 from src.storage.storage import Storage, StorageError, FatalStorageUploadError, StorageConfigurationError
 
 
-def _final_path(img_uuid: str) -> str:
-    return f"uploads/final/{img_uuid}"
+def _final_path(img_uuid: str, pet_id: str) -> str:
+    return f"uploads/pet_images/{pet_id}/{img_uuid}/final.webp"
 
 
 def _strip_path(path: str) -> str:
@@ -43,7 +43,7 @@ class BackgroundRemovalService:
         except Exception as e:
             raise FatalServiceError("Unknown background removal error", status_code=ErrorCode.UNKNOWN) from e
 
-        path = _final_path(_strip_path(job.input_key))
+        path = _final_path(str(job.image_id), str(job.pet_id))
         try:
             self.storage.upload_bytes(path, converted_img)
         except StorageConfigurationError as e:
