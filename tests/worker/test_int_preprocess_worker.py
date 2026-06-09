@@ -135,9 +135,6 @@ class TestPreprocessWorkerIntegration:
         mocker.patch("src.workers.preprocess_worker.sleep", side_effect=StopIteration)
 
         with pytest.raises(StopIteration):
-            rows = conn.execute("SELECT * FROM Job").fetchall()
-            for row in rows:
-                print(dict(row))
             worker.run()
 
         preprocess_job = repo.get_job_by_id(preprocess_job_id)
