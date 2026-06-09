@@ -2,17 +2,15 @@ import uuid
 
 import pyvips
 
-from src.service.exceptions import FatalServiceError, JobFailedError
-from src.repository.preprocess_job_repository import PreprocessJobRepository
-from src.models.status import JobStatus
-from src.service.exceptions import InvalidImageFormatError
+from src.models.errors import ErrorCode
+from src.service.exceptions import FatalServiceError, JobFailedError, InvalidImageFormatError
+from src.repository.repository import Repository
 from src.storage.storage import FatalStorageUploadError, Storage
 
 
-def _object_key(img_uuid: str) -> str:
+def _object_key(img_uuid: str, pet_id: str) -> str:
     """Returns an object key for the original image."""
-    return f"uploads/original/{img_uuid}"
-
+    return f"uploads/pet_images/{pet_id}/{img_uuid}/original"
 
 def _is_supported_header(h: bytes) -> bool:
     if h.startswith(b"\x89PNG\r\n\x1a\n"):
@@ -34,7 +32,7 @@ class UploadService:
 
     def __init__(self,
                  storage: Storage,
-                 repo: PreprocessJobRepository):
+                 repo: Repository):
         self.storage = storage
         self.repo = repo
 
@@ -60,39 +58,23 @@ class UploadService:
         except pyvips.error.Error as e:
             raise InvalidImageFormatError("Invalid image format") from e
 
-    def submit_upload(self, img: bytes, img_id: uuid.UUID) -> str:
-        """
-        Submit an image for processing and return the path to the stored image.
-
-        Args:
-            img (bytes): The image data to process
-            img_id (uuid.UUID): The unique identifier for the image
-
-        Returns:
-            str: the path to the processed image
-
-        Raises:
-            JobFailedError: if the image is invalid or processing fails
-            FatalServiceError: if a fatal storage error occurs (e.g. disk full)
-        """
+    def submit_upload(self, img: bytes, pet_id: uuid.UUID) -> str:
         try:
             self._validate_upload(img)
         except InvalidImageFormatError as e:
-            raise JobFailedError("Invalid image") from e
+            raise JobFailedError("Invalid image", status_code=ErrorCode.INVALID_FILE_FORMAT) from e
 
-        img_uuid = str(img_id)
-        path = _object_key(img_uuid)
-        job_id = self.repo.create(path)
-        if job_id is None:
-            raise JobFailedError("Failed to create job")
+        image_id = uuid.uuid4()
+        path = _object_key(str(image_id), str(pet_id))
+        job_id = self.repo.create_preprocess_job(path, pet_id, image_id)
 
         try:
             self.storage.upload_bytes(path, img)
         except FatalStorageUploadError as e:
-            self.repo.update_status(job_id, JobStatus.FAILED)
+            self.repo.fail_job(job_id, ErrorCode.DISK_FULL)
             raise FatalServiceError(f"Fatal storage error: {e}") from e
         except OSError as e:
-            self.repo.update_status(job_id, JobStatus.FAILED)
+            self.repo.fail_job(job_id, ErrorCode.STORAGE_ERROR)
             raise JobFailedError("Failed to upload image") from e
 
         return path

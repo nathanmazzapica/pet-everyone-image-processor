@@ -1,9 +1,12 @@
 from enum import Enum
 
+class JobType(Enum):
+    PREPROCESS = "PREPROCESS"
+    BACKGROUND_REMOVAL = "BACKGROUND_REMOVAL"
+
 class JobStatus(Enum):
     QUEUED="QUEUED"
-    DONE="DONE"
     PROCESSING="PROCESSING"
+    DONE="DONE"
     FAILED="FAILED"
-    RETRY="RETRY"
     REJECTED="REJECTED"

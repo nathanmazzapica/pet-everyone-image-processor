@@ -1,7 +1,7 @@
 import uuid
 from typing import Optional
 
-from fastapi import Depends, FastAPI, Header, HTTPException, status, UploadFile, File
+from fastapi import Depends, FastAPI, Form, Header, HTTPException, status, UploadFile, File
 from starlette.concurrency import run_in_threadpool
 
 from src.service.exceptions import FatalServiceError, JobFailedError
@@ -43,9 +43,18 @@ class PetEveryoneImageProcessorAPI:
         @self.app.post("/upload", status_code=status.HTTP_201_CREATED, response_model=UploadResponse)
         async def upload(
             file: UploadFile = File(...),
+            pet_id: str = Form(...),
             _: None = Depends(self._verify_shared_secret),
         ) -> UploadResponse:
             try:
+                try:
+                    pet_uuid = uuid.UUID(pet_id)
+                except ValueError:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Invalid pet_id: must be a valid UUID",
+                    )
+
                 image_bytes = await file.read()
                 if len(image_bytes) > UploadService.MAX_UPLOAD_SIZE:
                     raise HTTPException(
@@ -72,9 +81,8 @@ class PetEveryoneImageProcessorAPI:
                     )
 
 
-                image_id = uuid.uuid4()
                 try:
-                    self._upload_service.submit_upload(image_bytes, image_id)
+                    self._upload_service.submit_upload(image_bytes, pet_uuid)
                 except FatalServiceError as fse:
                     raise HTTPException(
                         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -86,6 +94,6 @@ class PetEveryoneImageProcessorAPI:
                         detail=f"Failed to process image: {jfe}",
                     ) from jfe
 
-                return UploadResponse(image_id=str(image_id), status="queued")
+                return UploadResponse(pet_id=pet_id, status="queued")
             finally:
                 await file.close()

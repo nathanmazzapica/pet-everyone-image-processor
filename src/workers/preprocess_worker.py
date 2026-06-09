@@ -1,11 +1,12 @@
 import logging
 import sqlite3
 
+from src.repository.exceptions import FatalDatabaseError
 from src.models.status import JobStatus
-from src.service.exceptions import JobRetryableError, JobFailedError, FatalServiceError
+from src.service.exceptions import JobFailedError, FatalServiceError
 from src.service.preprocess_service import PreprocessService
-from src.repository.preprocess_job_repository import PreprocessJobRepository
-from src.repository.job_repository import JobRepository
+from src.repository.repository import Repository
+from src.models.status import JobType
 from time import sleep
 
 from src.storage.storage import LocalStorage
@@ -15,57 +16,43 @@ logger = logging.getLogger(__name__)
 
 class Worker:
 
-    def __init__(self, repo: PreprocessJobRepository,
-                 job_repo: JobRepository,
+    def __init__(self, repo: Repository,
                  proc: PreprocessService):
         self.repo = repo
-        self.job_repo = job_repo
         self.proc = proc
         self.processed_jobs = 0
         self.failed_jobs = 0 # for later accounting, not implemented atm
-
-    def _add_to_bg_removal_queue(self, path: str):
-        self.job_repo.create(path)
+        self.MAX_ATTEMPTS = 3
+        self.RETRY_DELAY = 60
 
     def run(self):
         logger.info("Starting worker")
         while True:
             logger.debug("Checking for jobs")
-            job = self.repo.get_next_in_queue()
+            job = self.repo.next_preprocess_job()
             if job is None:
                 logger.debug("No jobs to process")
                 sleep(1)
-                continue
-            
-            if not self.repo.lock_job(job.id):
-                logger.warning("Job %s is already locked", job.id)
                 continue
 
             try:
                 logger.info("Processing job %s", job.id)
                 path = self.proc.preprocess(job)
-                self.repo.update_output_url(job.id, path)
-                self.repo.update_status(job.id, JobStatus.DONE)
-                self._add_to_bg_removal_queue(path)
+                self.repo.complete_preprocess_job(job.id, path, job.pet_id, job.image_id)
                 logger.info("Job %s processed", job.id)
                 self.processed_jobs += 1
-            except JobRetryableError as jre:
-                logger.exception("Job %s failed, retrying", job.id)
-                if job.attempt_count >= 3:
-                    logger.error("Job %s failed too many times, marking as failed", job.id)
-                    self.repo.update_status(job.id, JobStatus.FAILED)
-                    self.failed_jobs += 1
-                    continue
-                self.repo.update_attempt_count(job.id, job.attempt_count + 1)
-                self.repo.update_status(job.id, JobStatus.QUEUED)
-                self.failed_jobs += 1
             except JobFailedError as jfe:
                 logger.exception("Job %s failed", job.id)
-                self.repo.update_status(job.id, JobStatus.FAILED)
+                self.repo.fail_job(job.id, jfe.status_code)
                 self.failed_jobs += 1
             except FatalServiceError as fse:
                 logger.exception("Fatal service error")
-                self.repo.update_status(job.id, JobStatus.QUEUED)
+                if job.attempt_count >= self.MAX_ATTEMPTS:
+                    logger.error("Job %s failed too many times, marking as failed", job.id)
+                    self.repo.fail_job(job.id, fse.status_code)
+                    self.failed_jobs += 1
+                else:
+                    self.repo.retry_job(job.id, self.RETRY_DELAY)
                 raise fse
 
 
@@ -78,9 +65,19 @@ if __name__ == "__main__":
     logging.getLogger("pyvips").setLevel(logging.WARNING)
     logging.getLogger("PIL").setLevel(logging.WARNING)
     conn = sqlite3.connect("jobs.db")
-    r = PreprocessJobRepository(conn)
-    jr = JobRepository(conn)
+    r = Repository(conn)
     s = LocalStorage(base_path="storage")
-    pp = PreprocessService(s, r)
-    worker = Worker(r, jr, pp)
-    worker.run()
+    pp = PreprocessService(s)
+    worker = Worker(r, pp)
+    try:
+        worker.run()
+    except FatalServiceError as fse:
+        logger.exception("Fatal service error")
+        raise fse
+    except KeyboardInterrupt:
+        logger.info("Shutting down")
+        conn.close()
+        exit(0)
+    except FatalDatabaseError as fde:
+        logger.exception("Fatal database error")
+        raise fde

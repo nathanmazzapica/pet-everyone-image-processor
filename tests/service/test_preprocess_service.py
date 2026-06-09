@@ -1,20 +1,35 @@
+import uuid
+
 import pytest
 
 from src.models.job import Job
-from src.models.status import JobStatus
+from src.models.status import JobStatus, JobType
 from src.service.preprocess_service import PreprocessService
-from src.service.exceptions import JobFailedError, JobRetryableError, FatalServiceError, InvalidImageFormatError
+from src.service.exceptions import JobFailedError, FatalServiceError, InvalidImageFormatError
 from src.storage.storage import StorageError, FatalStorageUploadError, StorageConfigurationError, AssetNotFoundError
 
 
-FAKE_INPUT_URL = "uploads/original/abc123"
-FAKE_OUTPUT_PATH = "uploads/preprocessed/abc123"
 FAKE_IMAGE_BYTES = b"\x89PNG\r\n\x1a\n" + b"\x00" * 64
 FAKE_RESULT_BYTES = b"\x89PNG\r\n\x1a\n" + b"\xFF" * 64
+_PET_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
+_IMAGE_ID = uuid.UUID("00000000-0000-0000-0000-000000000002")
+FAKE_INPUT_KEY = f"uploads/pet_images/{_PET_ID}/{_IMAGE_ID}/original"
+FAKE_OUTPUT_PATH = f"uploads/pet_images/{_PET_ID}/{_IMAGE_ID}/preprocessed.webp"
+_TS = "2024-01-01T00:00:00.000Z"
 
 
-def make_job(input_url: str = FAKE_INPUT_URL) -> Job:
-    return Job(1, JobStatus.QUEUED, input_url, None, 0, None, 0.0, 0.0)
+def make_job(input_key: str = FAKE_INPUT_KEY) -> Job:
+    return Job(
+        id=1,
+        job_type=JobType.PREPROCESS,
+        status=JobStatus.QUEUED,
+        input_key=input_key,
+        pet_id=_PET_ID,
+        image_id=_IMAGE_ID,
+        created_at=_TS,
+        updated_at=_TS,
+        ready_at=_TS,
+    )
 
 
 @pytest.fixture
@@ -23,13 +38,8 @@ def mock_storage(mocker):
 
 
 @pytest.fixture
-def mock_repo(mocker):
-    return mocker.MagicMock()
-
-
-@pytest.fixture
-def service(mock_storage, mock_repo):
-    return PreprocessService(mock_storage, mock_repo)
+def service(mock_storage):
+    return PreprocessService(mock_storage)
 
 
 class TestPreprocess:
@@ -71,19 +81,12 @@ class TestPreprocess:
         with pytest.raises(JobFailedError):
             service.preprocess(make_job())
 
-    def test_raises_fatal_error_when_convert_raises_unexpected_error(self, service, mock_storage, mocker):
-        mock_storage.open_bytes.return_value = FAKE_IMAGE_BYTES
-        mocker.patch("src.service.preprocess_service.convert", side_effect=RuntimeError("boom"))
-
-        with pytest.raises(FatalServiceError):
-            service.preprocess(make_job())
-
-    def test_raises_retryable_error_when_upload_raises_os_error(self, service, mock_storage, mocker):
+    def test_raises_fatal_error_when_upload_raises_os_error(self, service, mock_storage, mocker):
         mock_storage.open_bytes.return_value = FAKE_IMAGE_BYTES
         mocker.patch("src.service.preprocess_service.convert", return_value=FAKE_RESULT_BYTES)
         mock_storage.upload_bytes.side_effect = OSError("temporary failure")
 
-        with pytest.raises(JobRetryableError):
+        with pytest.raises(FatalServiceError):
             service.preprocess(make_job())
 
     def test_raises_fatal_error_when_upload_raises_storage_configuration_error(self, service, mock_storage, mocker):

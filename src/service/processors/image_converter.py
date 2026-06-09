@@ -57,7 +57,7 @@ def _resize_image(img: pyvips.Image):
             return img
         return img.thumbnail_image(720, height=1280)
 
-    raise ValueError("Invalid aspect ratio")
+    raise InvalidImageFormatError("Invalid aspect ratio")
 
 
 def convert(image_data: bytes) -> bytes:
@@ -73,9 +73,9 @@ def convert(image_data: bytes) -> bytes:
 
     Returns:
         bytes: The binary content of the converted WEBP image.
+
     Raises:
-        InvalidImageFormatError if the provided image is not a valid image.
-        ValueError if the provided image has an invalid aspect ratio.
+        InvalidImageFormatError: if the provided image is not a valid image.
     """
     img = _verify_image(image_data)
     img = _resize_image(img)

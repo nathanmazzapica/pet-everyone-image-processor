@@ -1,68 +1,79 @@
-CREATE TABLE job
-(
-    job_id        INTEGER PRIMARY KEY AUTOINCREMENT,
-    job_status    TEXT    NOT NULL DEFAULT 'QUEUED' CHECK (
-        job_status IN (
-                       'QUEUED',
-                       'PROCESSING',
-                       'DONE',
-                       'FAILED',
-                       'RETRY',
-                       'REJECTED'
-            )
-        ),
-    input_url     TEXT    NOT NULL, -- TODO: rename to input_key/output_key
-    output_url    TEXT,
-    attempt_count INTEGER NOT NULL DEFAULT 0,
-    last_locked   REAL,
-    created_at    REAL    NOT NULL DEFAULT (strftime('%s', 'now')),
-    updated_at    REAL    NOT NULL DEFAULT (strftime('%s', 'now'))
+-- maps errors to human readable descriptions, used for observability
+CREATE TABLE IF NOT EXISTS FailureCodes (
+    err_no INTEGER PRIMARY KEY,
+    err_desc TEXT NOT NULL
 );
 
-CREATE INDEX idx_job_status ON job (job_status);
-CREATE INDEX idx_job_last_locked ON job (last_locked);
+INSERT OR IGNORE INTO FailureCodes (err_no, err_desc) VALUES
+    (1,  'INVALID_FILE_FORMAT'),
+    (2,  'VIRUS_DETECTED'),
+    (3,  'MODERATION_FAILED'),
+    (4,  'STORAGE_ERROR'),
+    (5,  'DISK_FULL'),
+    (6,  'PERMISSION_DENIED'),
+    (7,  'MODEL_INIT_FAILED'),
+    (8,  'INVALID_JOB'),
+    (9,  'OUT_OF_MEMORY'),
+    (10, 'STORAGE_CONFIG_ERROR'),
+    (11, 'ASSET_NOT_FOUND'),
+    (99, 'UNKNOWN');
 
-CREATE TRIGGER job_set_updated_at
-    AFTER UPDATE
-    ON job
-    FOR EACH ROW
-BEGIN
-    UPDATE job
-    SET updated_at = strftime('%s', 'now')
-    WHERE job_id = NEW.job_id;
-END;
-
-
-CREATE TABLE preprocess
-(
-    job_id        INTEGER PRIMARY KEY AUTOINCREMENT,
-    job_status    TEXT    NOT NULL DEFAULT 'QUEUED' CHECK (
-        job_status IN (
-                       'QUEUED',
-                       'PROCESSING',
-                       'DONE',
-                       'FAILED',
-                       'RETRY',
-                       'REJECTED'
-            )
-        ),
-    input_url     TEXT    NOT NULL,
-    output_url    TEXT,
+CREATE TABLE IF NOT EXISTS Job (
+    job_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_type TEXT NOT NULL CHECK (job_type IN (
+            'PREPROCESS',
+            'BACKGROUND_REMOVAL'
+        )),
+    job_status TEXT NOT NULL DEFAULT 'QUEUED' CHECK (job_status IN (
+            'QUEUED',
+            'PROCESSING',
+            'DONE',
+            'FAILED',
+            'REJECTED'
+        )),
+    input_key TEXT NOT NULL,
+    output_key TEXT,
     attempt_count INTEGER NOT NULL DEFAULT 0,
-    last_locked   REAL,
-    created_at    REAL    NOT NULL DEFAULT (strftime('%s', 'now')),
-    updated_at    REAL    NOT NULL DEFAULT (strftime('%s', 'now'))
+    last_locked INTEGER NOT NULL DEFAULT 0, -- 0 means never locked
+    pet_id TEXT NOT NULL,   -- populated with pet_id from the request
+    image_id TEXT NOT NULL, -- unique identifier for the uploaded image
+    ready_at        TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    created_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    updated_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
-CREATE INDEX idx_preprocess_status ON preprocess (job_status);
-CREATE INDEX idx_preprocess_last_locked ON preprocess (last_locked);
+CREATE INDEX IF NOT EXISTS idx_job_worker_poll
+    ON Job (job_type, job_status, ready_at)
+    WHERE job_status = 'QUEUED';
 
-CREATE TRIGGER preprocess_set_updated_at
-    AFTER UPDATE
-    ON preprocess
+CREATE INDEX IF NOT EXISTS idx_job_stale_lock
+    ON Job (job_status, last_locked)
+    WHERE job_status = 'PROCESSING';
+
+CREATE TRIGGER IF NOT EXISTS trg_job_updated_at
+    AFTER UPDATE ON Job
     FOR EACH ROW
-BEGIN
-    UPDATE preprocess
-    SET updated_at = strftime('%s', 'now')
-    WHERE job_id = NEW.job_id;
-END;
+    BEGIN
+        UPDATE Job
+        SET updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+        WHERE job_id = OLD.job_id;
+    end;
+
+CREATE TABLE IF NOT EXISTS FailedJobs (
+    job_id INTEGER NOT NULL REFERENCES Job(job_id),
+    timestamp TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    err_no INTEGER NOT NULL REFERENCES FailureCodes(err_no),
+    PRIMARY KEY (job_id, timestamp)
+);
+
+CREATE INDEX IF NOT EXISTS idx_failedjobs_jobid
+    ON FailedJobs (job_id);
+
+CREATE TABLE IF NOT EXISTS JobOutbox (
+    job_id INTEGER NOT NULL REFERENCES Job(job_id),
+    timestamp TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    PRIMARY KEY (job_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_outbox_timestamp
+    ON JobOutbox (timestamp);

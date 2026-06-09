@@ -1,28 +1,36 @@
+import uuid
+
 import pytest
 
 from src.models.job import Job
-from src.models.status import JobStatus
-from src.service.exceptions import FatalServiceError, JobFailedError, JobRetryableError
+from src.models.status import JobStatus, JobType
+from src.service.exceptions import FatalServiceError, JobFailedError
 from src.workers.preprocess_worker import Worker
 
-FAKE_INPUT_URL = "uploads/original/abc123"
+FAKE_INPUT_KEY = "uploads/original/abc123"
 FAKE_OUTPUT_PATH = "uploads/preprocessed/abc123"
+_PET_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
+_IMAGE_ID = uuid.UUID("00000000-0000-0000-0000-000000000002")
+_TS = "2024-01-01T00:00:00.000Z"
 
 
 def make_job(attempt_count: int = 0) -> Job:
-    return Job(1, JobStatus.QUEUED, FAKE_INPUT_URL, None, attempt_count, None, 0.0, 0.0)
+    return Job(
+        id=1,
+        job_type=JobType.PREPROCESS,
+        status=JobStatus.QUEUED,
+        input_key=FAKE_INPUT_KEY,
+        pet_id=_PET_ID,
+        image_id=_IMAGE_ID,
+        created_at=_TS,
+        updated_at=_TS,
+        ready_at=_TS,
+        attempt_count=attempt_count,
+    )
 
 
 @pytest.fixture
 def mock_repo(mocker):
-    repo = mocker.MagicMock()
-    repo.lock_job.return_value = True
-    return repo
-
-
-
-@pytest.fixture
-def mock_job_repo(mocker):
     return mocker.MagicMock()
 
 
@@ -32,65 +40,52 @@ def mock_service(mocker):
 
 
 @pytest.fixture
-def worker(mock_repo, mock_job_repo, mock_service):
-    return Worker(mock_repo, mock_job_repo, mock_service)
+def worker(mock_repo, mock_service):
+    return Worker(mock_repo, mock_service)
 
 
 class TestWorkerRun:
-    def test_increments_processed_count_after_successful_job(self, worker, mock_repo, mock_job_repo, mock_service):
+    def test_increments_processed_count_after_successful_job(self, worker, mock_repo, mock_service):
         job = make_job()
-        mock_repo.get_next_in_queue.side_effect = [job, StopIteration()]
+        mock_repo.next_preprocess_job.side_effect = [job, StopIteration()]
         mock_service.preprocess.return_value = FAKE_OUTPUT_PATH
 
         with pytest.raises(StopIteration):
             worker.run()
 
-        mock_repo.update_output_url.assert_called_once_with(job.id, FAKE_OUTPUT_PATH)
-        mock_repo.update_status.assert_called_once_with(job.id, JobStatus.DONE)
-        mock_job_repo.create.assert_called_once_with(FAKE_OUTPUT_PATH)
+        mock_repo.complete_preprocess_job.assert_called_once_with(job.id, FAKE_OUTPUT_PATH, job.pet_id, job.image_id)
         assert worker.processed_jobs == 1
 
     def test_increments_failed_count_on_job_failed_error(self, worker, mock_repo, mock_service):
         job = make_job()
-        mock_repo.get_next_in_queue.side_effect = [job, StopIteration()]
-        mock_service.preprocess.side_effect = JobFailedError("bad image")
+        mock_repo.next_preprocess_job.side_effect = [job, StopIteration()]
+        mock_service.preprocess.side_effect = JobFailedError("bad image", status_code=4)
 
         with pytest.raises(StopIteration):
             worker.run()
 
-        mock_repo.update_status.assert_called_once_with(job.id, JobStatus.FAILED)
+        mock_repo.fail_job.assert_called_once_with(job.id, 4)
         assert worker.failed_jobs == 1
 
-    def test_requeues_retryable_error_and_increments_attempt_count(self, worker, mock_repo, mock_service):
+    def test_fatal_service_error_retries_when_below_max_attempts(self, worker, mock_repo, mock_service):
         job = make_job(attempt_count=1)
-        mock_repo.get_next_in_queue.side_effect = [job, StopIteration()]
-        mock_service.preprocess.side_effect = JobRetryableError("transient failure")
-
-        with pytest.raises(StopIteration):
-            worker.run()
-
-        mock_repo.update_attempt_count.assert_called_once_with(job.id, 2)
-        mock_repo.update_status.assert_called_once_with(job.id, JobStatus.QUEUED)
-        assert worker.failed_jobs == 1
-
-    def test_marks_retryable_error_as_failed_after_max_attempts(self, worker, mock_repo, mock_service):
-        job = make_job(attempt_count=3)
-        mock_repo.get_next_in_queue.side_effect = [job, StopIteration()]
-        mock_service.preprocess.side_effect = JobRetryableError("transient failure")
-
-        with pytest.raises(StopIteration):
-            worker.run()
-
-        mock_repo.update_attempt_count.assert_not_called()
-        mock_repo.update_status.assert_called_once_with(job.id, JobStatus.FAILED)
-        assert worker.failed_jobs == 1
-
-    def test_raises_fatal_service_error(self, worker, mock_repo, mock_service):
-        job = make_job()
-        mock_repo.get_next_in_queue.return_value = job
-        mock_service.preprocess.side_effect = FatalServiceError("fatal!")
+        mock_repo.next_preprocess_job.return_value = job
+        mock_service.preprocess.side_effect = FatalServiceError("transient failure", status_code=9)
 
         with pytest.raises(FatalServiceError):
             worker.run()
 
-        mock_repo.update_status.assert_called_once_with(job.id, JobStatus.QUEUED)
+        mock_repo.retry_job.assert_called_once_with(job.id, worker.RETRY_DELAY)
+        mock_repo.fail_job.assert_not_called()
+
+    def test_fatal_service_error_fails_job_after_max_attempts(self, worker, mock_repo, mock_service):
+        job = make_job(attempt_count=3)
+        mock_repo.next_preprocess_job.return_value = job
+        mock_service.preprocess.side_effect = FatalServiceError("persistent failure", status_code=9)
+
+        with pytest.raises(FatalServiceError):
+            worker.run()
+
+        mock_repo.fail_job.assert_called_once_with(job.id, 9)
+        mock_repo.retry_job.assert_not_called()
+        assert worker.failed_jobs == 1

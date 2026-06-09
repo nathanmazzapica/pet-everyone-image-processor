@@ -1,20 +1,35 @@
+import uuid
+
 import pytest
 
 from src.models.job import Job
-from src.models.status import JobStatus
+from src.models.status import JobStatus, JobType
 from src.service.background_removal_service import BackgroundRemovalService
-from src.service.exceptions import JobFailedError, JobRetryableError, FatalServiceError
+from src.service.exceptions import JobFailedError, FatalServiceError
 from src.storage.storage import StorageError, FatalStorageUploadError, StorageConfigurationError
 
 
-FAKE_INPUT_URL = "uploads/preprocessed/abc123"
-FAKE_OUTPUT_PATH = "uploads/final/abc123"
 FAKE_IMAGE_BYTES = b"\x89PNG\r\n\x1a\n" + b"\x00" * 64
 FAKE_RESULT_BYTES = b"\x89PNG\r\n\x1a\n" + b"\xFF" * 64
+_PET_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
+_IMAGE_ID = uuid.UUID("00000000-0000-0000-0000-000000000002")
+FAKE_INPUT_KEY = f"uploads/pet_images/{_PET_ID}/{_IMAGE_ID}/original"
+FAKE_OUTPUT_PATH = f"uploads/pet_images/{_PET_ID}/{_IMAGE_ID}/final.webp"
+_TS = "2024-01-01T00:00:00.000Z"
 
 
-def make_job(input_url: str = FAKE_INPUT_URL) -> Job:
-    return Job(1, JobStatus.QUEUED, input_url, None, 0, None, 0.0, 0.0)
+def make_job(input_key: str = FAKE_INPUT_KEY) -> Job:
+    return Job(
+        id=1,
+        job_type=JobType.BACKGROUND_REMOVAL,
+        status=JobStatus.QUEUED,
+        input_key=input_key,
+        pet_id=_PET_ID,
+        image_id=_IMAGE_ID,
+        created_at=_TS,
+        updated_at=_TS,
+        ready_at=_TS,
+    )
 
 
 @pytest.fixture
@@ -31,7 +46,7 @@ def mock_remover(mocker):
 
 @pytest.fixture
 def service(mock_storage, mock_remover, mocker):
-    return BackgroundRemovalService(mock_storage, mock_remover, mocker.MagicMock())
+    return BackgroundRemovalService(mock_storage, mock_remover)
 
 
 class TestRemoveBackground:
@@ -51,16 +66,16 @@ class TestRemoveBackground:
 
         mock_storage.upload_bytes.assert_called_once_with(FAKE_OUTPUT_PATH, FAKE_RESULT_BYTES)
 
-    def test_strips_directory_prefix_from_input_url(self, service, mock_storage):
+    def test_strips_directory_prefix_from_input_key(self, service, mock_storage):
         mock_storage.open_bytes.return_value = FAKE_IMAGE_BYTES
-        job = make_job(input_url="uploads/preprocessed/some/nested/image_id")
+        job = make_job(input_key="uploads/preprocessed/some/nested/image_id")
 
         result = service.remove_background(job)
 
-        assert result == "uploads/final/image_id"
+        assert result == f"uploads/pet_images/{_PET_ID}/{_IMAGE_ID}/final.webp"
 
     def test_raises_fatal_error_when_no_background_remover(self, mock_storage, mocker):
-        svc = BackgroundRemovalService(mock_storage, None, mocker.MagicMock())
+        svc = BackgroundRemovalService(mock_storage, None)
 
         with pytest.raises(FatalServiceError):
             svc.remove_background(make_job())
@@ -107,7 +122,7 @@ class TestRemoveBackground:
         mock_storage.open_bytes.return_value = FAKE_IMAGE_BYTES
         mock_storage.upload_bytes.side_effect = OSError("no space left on device")
 
-        with pytest.raises(JobRetryableError):
+        with pytest.raises(FatalServiceError):
             service.remove_background(make_job())
 
     def test_retryable_error_wraps_upload_os_error(self, service, mock_storage):
@@ -115,7 +130,7 @@ class TestRemoveBackground:
         original = OSError("no space left on device")
         mock_storage.upload_bytes.side_effect = original
 
-        with pytest.raises(JobRetryableError) as exc_info:
+        with pytest.raises(FatalServiceError) as exc_info:
             service.remove_background(make_job())
 
         assert exc_info.value.__cause__ is original
