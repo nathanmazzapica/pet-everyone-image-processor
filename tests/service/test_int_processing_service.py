@@ -1,4 +1,3 @@
-import os
 import uuid
 
 import pyvips
@@ -14,6 +13,8 @@ from src.service.processors.background_remover import BackgroundRemover
 from src.storage.storage import LocalStorage
 
 _TS = "2024-01-01T00:00:00.000Z"
+_PET_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
+_IMAGE_ID = uuid.UUID("00000000-0000-0000-0000-000000000002")
 
 
 @pytest.fixture
@@ -69,13 +70,13 @@ def test_preprocess_image(preprocess_service, storage):
         job_type=JobType.PREPROCESS,
         status=JobStatus.QUEUED,
         input_key=path,
-        pet_id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
-        image_id=uuid.UUID("00000000-0000-0000-0000-000000000002"),
+        pet_id=_PET_ID,
+        image_id=_IMAGE_ID,
         created_at=_TS,
         updated_at=_TS,
         ready_at=_TS,
     )
-    assert preprocess_service.preprocess(job) == "uploads/preprocessed/sample_original"
+    assert preprocess_service.preprocess(job) == f"uploads/pet_images/{_PET_ID}/{_IMAGE_ID}/preprocessed.webp"
 
 
 def test_remove_background(background_removal_service, storage):
@@ -86,13 +87,13 @@ def test_remove_background(background_removal_service, storage):
         job_type=JobType.BACKGROUND_REMOVAL,
         status=JobStatus.QUEUED,
         input_key=path,
-        pet_id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
-        image_id=uuid.UUID("00000000-0000-0000-0000-000000000002"),
+        pet_id=_PET_ID,
+        image_id=_IMAGE_ID,
         created_at=_TS,
         updated_at=_TS,
         ready_at=_TS,
     )
-    assert background_removal_service.remove_background(job) == "uploads/final/sample_preprocessed"
+    assert background_removal_service.remove_background(job) == f"uploads/pet_images/{_PET_ID}/{_IMAGE_ID}/final.webp"
 
 
 def test_full_pipeline(upload_service, preprocess_service, background_removal_service, storage):
@@ -102,7 +103,8 @@ def test_full_pipeline(upload_service, preprocess_service, background_removal_se
     p = upload_service.submit_upload(b, pet_id)
     assert storage.exists(p)
 
-    image_id = uuid.UUID(p.rsplit("/", 1)[-1])
+    # path format: uploads/pet_images/{pet_id}/{image_id}/original
+    image_id = uuid.UUID(p.split("/")[-2])
 
     preprocess_job = Job(
         id=1,
@@ -116,8 +118,8 @@ def test_full_pipeline(upload_service, preprocess_service, background_removal_se
         ready_at=_TS,
     )
     np = preprocess_service.preprocess(preprocess_job)
-    assert np == f"uploads/preprocessed/{image_id}"
-    assert storage.exists(f"uploads/preprocessed/{image_id}")
+    assert np == f"uploads/pet_images/{pet_id}/{image_id}/preprocessed.webp"
+    assert storage.exists(np)
 
     b2 = storage.open_bytes(np)
     orig = pyvips.Image.new_from_buffer(b, "")
@@ -140,8 +142,8 @@ def test_full_pipeline(upload_service, preprocess_service, background_removal_se
     )
     final = background_removal_service.remove_background(bg_job)
 
-    assert final == f"uploads/final/{image_id}"
-    assert storage.exists(f"uploads/final/{image_id}")
+    assert final == f"uploads/pet_images/{pet_id}/{image_id}/final.webp"
+    assert storage.exists(final)
     assert storage.open_bytes(final) != b2
     assert storage.open_bytes(final) != b
 
