@@ -11,6 +11,7 @@ class Job:
     status: JobStatus
     input_key: str
     pet_id: uuid.UUID
+    image_id: uuid.UUID
     created_at: str
     updated_at: str
     ready_at: str
@@ -27,6 +28,7 @@ class Job:
             input_key=row["input_key"],
             output_key=row["output_key"],
             pet_id=uuid.UUID(row["pet_id"]),
+            image_id=uuid.UUID(row["image_id"]),
             attempt_count=row["attempt_count"],
             last_locked=row["last_locked"],
             ready_at=row["ready_at"],
@@ -42,6 +44,7 @@ class Job:
             "input_key": self.input_key,
             "output_key": self.output_key,
             "pet_id": str(self.pet_id),
+            "image_id": str(self.image_id),
             "attempt_count": self.attempt_count,
             "last_locked": self.last_locked,
             "ready_at": self.ready_at,

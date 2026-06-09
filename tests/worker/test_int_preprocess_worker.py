@@ -52,8 +52,13 @@ def pet_id() -> uuid.UUID:
 
 
 @pytest.fixture
-def preprocess_job_id(repo, pet_id) -> int:
-    return repo.create_preprocess_job(FAKE_INPUT_KEY, pet_id)
+def image_id() -> uuid.UUID:
+    return uuid.uuid4()
+
+
+@pytest.fixture
+def preprocess_job_id(repo, pet_id, image_id) -> int:
+    return repo.create_preprocess_job(FAKE_INPUT_KEY, pet_id, image_id)
 
 
 class TestPreprocessWorkerIntegration:

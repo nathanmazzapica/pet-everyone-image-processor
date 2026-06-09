@@ -37,13 +37,15 @@ class Repository:
         with self.conn:
             self.conn.executescript(schema_sql)
 
-    def __create_job(self, input_key: str, job_type: JobType, pet_id: uuid.UUID) -> int:
+    def __create_job(self, input_key: str, job_type: JobType, pet_id: uuid.UUID, image_id: uuid.UUID) -> int:
         try:
             with self.conn:
                 res = self.conn.execute(
-                    "INSERT INTO Job (job_type, job_status, input_key, pet_id) VALUES (?, ?, ?, ?)",
-                    (job_type.value, JobStatus.QUEUED.value, input_key, str(pet_id)),
+                    "INSERT INTO Job (job_type, job_status, input_key, pet_id, image_id) VALUES (?, ?, ?, ?, ?)",
+                    (job_type.value, JobStatus.QUEUED.value, input_key, str(pet_id), str(image_id)),
                 )
+                if res.lastrowid is None:
+                    raise FatalDatabaseError("INSERT returned no row ID")
                 return res.lastrowid
         except sqlite3.OperationalError as e:
             raise FatalDatabaseError("Malformed SQL") from e
@@ -52,11 +54,11 @@ class Repository:
         except sqlite3.DatabaseError as e:
             raise FatalDatabaseError("Corrupt database file") from e
 
-    def create_preprocess_job(self, input_key: str, pet_id: uuid.UUID) -> int:
-        return self.__create_job(input_key, JobType.PREPROCESS, pet_id)
+    def create_preprocess_job(self, input_key: str, pet_id: uuid.UUID, image_id: uuid.UUID) -> int:
+        return self.__create_job(input_key, JobType.PREPROCESS, pet_id, image_id)
 
-    def create_background_removal_job(self, input_key: str, pet_id: uuid.UUID) -> int:
-        return self.__create_job(input_key, JobType.BACKGROUND_REMOVAL, pet_id)
+    def create_background_removal_job(self, input_key: str, pet_id: uuid.UUID, image_id: uuid.UUID) -> int:
+        return self.__create_job(input_key, JobType.BACKGROUND_REMOVAL, pet_id, image_id)
 
     def lock_job(self, job_id: int) -> bool:
         """Transitions a QUEUED job to PROCESSING, incrementing attempt_count. Returns False if the job was not in QUEUED state."""
@@ -111,7 +113,7 @@ class Repository:
         except sqlite3.DatabaseError as e:
             raise FatalDatabaseError(f"Failed to complete job {job_id}") from e
 
-    def complete_preprocess_job(self, job_id: int, output_key: str, pet_id: uuid.UUID) -> int:
+    def complete_preprocess_job(self, job_id: int, output_key: str, pet_id: uuid.UUID, image_id: uuid.UUID) -> int:
         try:
             with self.conn:
                 cur = self.conn.execute(
@@ -124,9 +126,11 @@ class Repository:
                     "INSERT INTO JobOutbox (job_id) VALUES (?)", (job_id,)
                 )
                 res = self.conn.execute(
-                    "INSERT INTO Job (job_type, job_status, input_key, pet_id) VALUES (?, ?, ?, ?)",
-                    (JobType.BACKGROUND_REMOVAL.value, JobStatus.QUEUED.value, output_key, str(pet_id)),
+                    "INSERT INTO Job (job_type, job_status, input_key, pet_id, image_id) VALUES (?, ?, ?, ?, ?)",
+                    (JobType.BACKGROUND_REMOVAL.value, JobStatus.QUEUED.value, output_key, str(pet_id), str(image_id)),
                 )
+                if res.lastrowid is None:
+                    raise FatalDatabaseError("INSERT returned no row ID")
                 return res.lastrowid
         except sqlite3.OperationalError as e:
             raise FatalDatabaseError("Malformed SQL") from e

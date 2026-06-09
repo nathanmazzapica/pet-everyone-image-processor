@@ -10,10 +10,10 @@ class UploadRequest(BaseModel):
 
 
 class UploadResponse(BaseModel):
-    image_id: str
+    pet_id: str
     status: str
 
 
 class StatusResponse(BaseModel):
-    image_id: str
+    pet_id: str
     status: str

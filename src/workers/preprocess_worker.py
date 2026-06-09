@@ -25,9 +25,6 @@ class Worker:
         self.MAX_ATTEMPTS = 3
         self.RETRY_DELAY = 60
 
-    def _add_to_bg_removal_queue(self, path: str):
-        self.repo.create_background_removal_job(path, )
-
     def run(self):
         logger.info("Starting worker")
         while True:
@@ -41,7 +38,7 @@ class Worker:
             try:
                 logger.info("Processing job %s", job.id)
                 path = self.proc.preprocess(job)
-                self.repo.complete_preprocess_job(job.id, path, job.pet_id)
+                self.repo.complete_preprocess_job(job.id, path, job.pet_id, job.image_id)
                 logger.info("Job %s processed", job.id)
                 self.processed_jobs += 1
             except JobFailedError as jfe:

@@ -21,7 +21,8 @@ CREATE TABLE IF NOT EXISTS Job (
     output_key TEXT,
     attempt_count INTEGER NOT NULL DEFAULT 0,
     last_locked INTEGER NOT NULL DEFAULT 0, -- 0 means never locked
-    pet_id TEXT NOT NULL,  -- populated with pet_id from the request
+    pet_id TEXT NOT NULL,   -- populated with pet_id from the request
+    image_id TEXT NOT NULL, -- unique identifier for the uploaded image
     ready_at        TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
     created_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
     updated_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
