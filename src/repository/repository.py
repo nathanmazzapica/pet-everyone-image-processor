@@ -232,14 +232,16 @@ class Repository:
                 if row is None:
                     return None
                 job_id = row["job_id"]
-                self.conn.execute(
+                cur = self.conn.execute(
                     """UPDATE Job
                        SET job_status    = ?,
                            last_locked   = CAST(strftime('%s', 'now') AS INTEGER),
                            attempt_count = attempt_count + 1
-                       WHERE job_id = ?""",
-                    (JobStatus.PROCESSING.value, job_id),
+                       WHERE job_id = ? AND job_status = ?""",
+                    (JobStatus.PROCESSING.value, job_id, JobStatus.QUEUED.value),
                 )
+                if cur.rowcount == 0:
+                    return None
                 updated = self.conn.execute(
                     "SELECT * FROM Job WHERE job_id = ?", (job_id,)
                 ).fetchone()
