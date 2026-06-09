@@ -9,12 +9,12 @@ from src.service.exceptions import JobFailedError, FatalServiceError
 from src.storage.storage import StorageError, FatalStorageUploadError, StorageConfigurationError
 
 
-FAKE_INPUT_KEY = "uploads/preprocessed/abc123"
-FAKE_OUTPUT_PATH = "uploads/final/abc123"
 FAKE_IMAGE_BYTES = b"\x89PNG\r\n\x1a\n" + b"\x00" * 64
 FAKE_RESULT_BYTES = b"\x89PNG\r\n\x1a\n" + b"\xFF" * 64
 _PET_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
 _IMAGE_ID = uuid.UUID("00000000-0000-0000-0000-000000000002")
+FAKE_INPUT_KEY = f"uploads/pet_images/{_PET_ID}/{_IMAGE_ID}/original"
+FAKE_OUTPUT_PATH = f"uploads/pet_images/{_PET_ID}/{_IMAGE_ID}/final.webp"
 _TS = "2024-01-01T00:00:00.000Z"
 
 
@@ -72,7 +72,7 @@ class TestRemoveBackground:
 
         result = service.remove_background(job)
 
-        assert result == "uploads/final/image_id"
+        assert result == f"uploads/pet_images/{_PET_ID}/{_IMAGE_ID}/final.webp"
 
     def test_raises_fatal_error_when_no_background_remover(self, mock_storage, mocker):
         svc = BackgroundRemovalService(mock_storage, None)
