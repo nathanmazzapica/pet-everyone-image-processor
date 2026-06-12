@@ -115,10 +115,13 @@ if __name__ == "__main__":
                     raise SystemExit(code)
             for p in bg_removal_worker_procs:
                 if not p.is_alive():
-                    logger.exception(f"Fatal error in background worker. Exit code: {p.exitcode}\n desc: {repo.get_error_desc(p.exitcode)}")
-                    # send alert one day
-                    # TODO: determine if any error code is recoverable, and recover if possible.
-
+                    code = p.exitcode if p.exitcode is not None else 99
+                    logger.error(
+                        "Background-removal worker died. Exit code: %s desc: %s",
+                        code,
+                        repo.get_error_desc(code),
+                    )
+                    raise SystemExit(code)
             if tick % 60 == 0:
                 repo.unlock_stale_jobs()
 
