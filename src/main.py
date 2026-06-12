@@ -31,10 +31,10 @@ def _run_preprocess_worker():
     worker = PreprocessWorker(repo, service)
     try:
         worker.run()
-    except (FatalServiceError, FatalDatabaseError):
+    except (FatalServiceError, FatalDatabaseError) as e:
         logger.exception("Fatal error in preprocess worker")
         conn.close()
-        raise
+        raise SystemExit(getattr(e, "status_code", 99)) from e
     except KeyboardInterrupt:
         conn.close()
 
