@@ -127,3 +127,4 @@ if __name__ == "__main__":
         for p in preprocess_worker_procs + bg_removal_worker_procs:
             p.terminate()
             p.join()
+        conn.close()
