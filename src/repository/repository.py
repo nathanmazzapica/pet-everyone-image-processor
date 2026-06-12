@@ -217,6 +217,22 @@ class Repository:
         except sqlite3.DatabaseError as e:
             raise FatalDatabaseError(f"Failed to get job {job_id}") from e
 
+    def unlock_stale_jobs(self):
+        try:
+            with self.conn:
+                cur = self.conn.execute(
+                    """UPDATE Job
+                       SET job_status = ?
+                       WHERE job_status = ? 
+                       AND last_locked <= CAST(strftime('%s', 'now') AS INTEGER) - 300""",
+                    (JobStatus.QUEUED.value, JobStatus.PROCESSING.value),
+                )
+                return cur.rowcount
+        except sqlite3.OperationalError as e:
+            raise FatalDatabaseError("Malformed SQL") from e
+        except sqlite3.DatabaseError as e:
+            raise FatalDatabaseError("Failed to unlock stale jobs") from e
+
     def __get_next_in_queue(self, job_type: JobType) -> Optional[Job]:
         """Atomically dequeues the next eligible job: SELECT + lock UPDATE in one transaction."""
         try:
@@ -273,3 +289,15 @@ class Repository:
             raise FatalDatabaseError("Malformed SQL") from e
         except sqlite3.DatabaseError as e:
             raise FatalDatabaseError(f"Failed to set output key for job {job_id}") from e
+
+    def get_error_desc(self, code: int):
+        try:
+            with self.conn:
+                row = self.conn.execute(
+                    "SELECT err_desc FROM FailureCodes WHERE err_no = ?", (code,)
+                ).fetchone()
+                if row is None:
+                    return f"Unknown error code {code}"
+                return row["err_desc"]
+        except Exception:
+            raise Exception(f"Failed to get error description for code {code}")

@@ -17,13 +17,13 @@ logger = logging.getLogger(__name__)
 class Worker:
 
     def __init__(self, repo: Repository,
-                 proc: PreprocessService):
+                 proc: PreprocessService, retry_delay=60):
         self.repo = repo
         self.proc = proc
         self.processed_jobs = 0
         self.failed_jobs = 0 # for later accounting, not implemented atm
         self.MAX_ATTEMPTS = 3
-        self.RETRY_DELAY = 60
+        self.RETRY_DELAY = retry_delay
 
     def run(self):
         logger.info("Starting worker")
