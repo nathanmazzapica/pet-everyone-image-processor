@@ -56,10 +56,10 @@ def _run_bg_removal_worker():
     worker = BackgroundRemovalWorker(repo, service)
     try:
         worker.run()
-    except (FatalServiceError, FatalDatabaseError):
+    except (FatalServiceError, FatalDatabaseError) as e:
         logger.exception("Fatal error in background removal worker")
         conn.close()
-        raise
+        raise SystemExit(getattr(e, "status_code", 99)) from e
     except KeyboardInterrupt:
         conn.close()
 
