@@ -217,17 +217,17 @@ class Repository:
         except sqlite3.DatabaseError as e:
             raise FatalDatabaseError(f"Failed to get job {job_id}") from e
 
-    def unlock_stale_jobs(self):
-        try:
-            with self.conn:
-                cur = self.conn.execute(
-                    """UPDATE Job
-                       SET job_status = ?
-                       WHERE job_status = ? 
-                       AND last_locked <= CAST(strftime('%s', 'now') AS INTEGER) - 300""",
-                    (JobStatus.QUEUED.value, JobStatus.PROCESSING.value),
-                )
-                return cur.rowcount
+def unlock_stale_jobs(self, stale_after_seconds: int = 300) -> int:
+    try:
+        with self.conn:
+            cur = self.conn.execute(
+                """UPDATE Job
+                   SET job_status = ?
+                   WHERE job_status = ?
+                   AND last_locked <= CAST(strftime('%s', 'now') AS INTEGER) - ?""",
+                (JobStatus.QUEUED.value, JobStatus.PROCESSING.value, stale_after_seconds),
+            )
+            return cur.rowcount
         except sqlite3.OperationalError as e:
             raise FatalDatabaseError("Malformed SQL") from e
         except sqlite3.DatabaseError as e:
