@@ -290,14 +290,17 @@ def unlock_stale_jobs(self, stale_after_seconds: int = 300) -> int:
         except sqlite3.DatabaseError as e:
             raise FatalDatabaseError(f"Failed to set output key for job {job_id}") from e
 
-    def get_error_desc(self, code: int):
-        try:
-            with self.conn:
-                row = self.conn.execute(
-                    "SELECT err_desc FROM FailureCodes WHERE err_no = ?", (code,)
-                ).fetchone()
-                if row is None:
-                    return f"Unknown error code {code}"
-                return row["err_desc"]
-        except Exception:
-            raise Exception(f"Failed to get error description for code {code}")
+def get_error_desc(self, code: int) -> str:
+    try:
+        row = self.conn.execute(
+            "SELECT err_desc FROM FailureCodes WHERE err_no = ?", (code,)
+        ).fetchone()
+        if row is None:
+            return f"Unknown error code {code}"
+        return row["err_desc"]
+    except sqlite3.OperationalError as e:
+        raise FatalDatabaseError("Malformed SQL") from e
+    except sqlite3.DatabaseError as e:
+        raise FatalDatabaseError(
+            f"Failed to get error description for code {code}"
+        ) from e
