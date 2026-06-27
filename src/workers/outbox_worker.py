@@ -85,6 +85,6 @@ class OutboxWorker:
                     job.id, self.RETRY_SLEEP,
                 )
                 sleep(self.RETRY_SLEEP)
-            except (PublisherConfigurationError, PublisherError, PublisherInvalidPayloadError) as e:
+            except PublisherError as e:
                 logger.error("Failed to publish job %s: %s", job.id, e)
-                raise e
+                raise
