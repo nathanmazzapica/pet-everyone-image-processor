@@ -5,12 +5,12 @@ from src.messaging.publisher import Publisher
 
 
 class RedisPublisher(Publisher):
-    def __init__(self,
-                 host: str = 'localhost',
-                 port: int = 6379
-                 ):
+    def __init__(self, uri: str = "redis://localhost:6379"):
         self.CHANNEL = "IMAGE_PROCESSING_EVENTS"
-        self.conn = redis.Redis(host='localhost', port=6379, decode_responses=True)
+        try:
+            self.conn = redis.Redis.from_url(uri, decode_responses=True)
+        except ValueError as e:
+            raise PublisherConfigurationError("Invalid Redis URI") from e
 
     def publish(self, evt: JobStatusUpdate):
         message = evt.to_json()
