@@ -321,7 +321,7 @@ class Repository:
     def get_next_job_in_outbox(self) -> Optional[Job]:
         try:
             row = self.conn.execute(
-                "SELECT * FROM JobOutbox LIMIT 1"
+                "SELECT * FROM JobOutbox ORDER BY timestamp ASC LIMIT 1"
             ).fetchone()
             if row is None:
                 return None
