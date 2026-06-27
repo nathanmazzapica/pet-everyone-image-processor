@@ -3,8 +3,12 @@ import sqlite3
 import uuid
 
 import pytest
-import redis.exceptions
 
+from src.messaging.exceptions import (
+    PublisherConfigurationError,
+    PublisherConnectionError,
+    PublisherInvalidPayloadError,
+)
 from src.messaging.publisher import Publisher
 from src.models.errors import ErrorCode
 from src.models.status import JobStatus
@@ -127,7 +131,7 @@ class TestOutboxWorkerIntegration:
     def test_connection_error_logs_warning_sleeps_retry_and_does_not_delete_outbox_row(
         self, worker, mock_publisher, conn, done_job_id, mocker, caplog
     ):
-        mock_publisher.publish.side_effect = redis.exceptions.ConnectionError
+        mock_publisher.publish.side_effect = PublisherConnectionError
         sleep_mock = mocker.patch("src.workers.outbox_worker.sleep", side_effect=StopIteration)
 
         with caplog.at_level(logging.WARNING, logger="src.workers.outbox_worker"):
@@ -136,6 +140,38 @@ class TestOutboxWorkerIntegration:
 
         sleep_mock.assert_called_once_with(worker.RETRY_SLEEP)
         assert any("Connection error" in r.message for r in caplog.records)
+
+        row = conn.execute(
+            "SELECT * FROM JobOutbox WHERE job_id = ?", (done_job_id,)
+        ).fetchone()
+        assert row is not None
+
+    def test_configuration_error_logs_error_raises_and_does_not_delete_outbox_row(
+        self, worker, mock_publisher, conn, done_job_id, caplog
+    ):
+        mock_publisher.publish.side_effect = PublisherConfigurationError
+
+        with caplog.at_level(logging.ERROR, logger="src.workers.outbox_worker"):
+            with pytest.raises(PublisherConfigurationError):
+                worker.run()
+
+        assert any(r.levelno == logging.ERROR for r in caplog.records)
+
+        row = conn.execute(
+            "SELECT * FROM JobOutbox WHERE job_id = ?", (done_job_id,)
+        ).fetchone()
+        assert row is not None
+
+    def test_invalid_payload_error_logs_error_raises_and_does_not_delete_outbox_row(
+        self, worker, mock_publisher, conn, done_job_id, caplog
+    ):
+        mock_publisher.publish.side_effect = PublisherInvalidPayloadError
+
+        with caplog.at_level(logging.ERROR, logger="src.workers.outbox_worker"):
+            with pytest.raises(PublisherInvalidPayloadError):
+                worker.run()
+
+        assert any(r.levelno == logging.ERROR for r in caplog.records)
 
         row = conn.execute(
             "SELECT * FROM JobOutbox WHERE job_id = ?", (done_job_id,)
