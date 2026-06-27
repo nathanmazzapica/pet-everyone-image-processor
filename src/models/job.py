@@ -1,5 +1,5 @@
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from typing import Mapping, Optional, Any
 from src.models.status import JobStatus, JobType
 
@@ -37,17 +37,5 @@ class Job:
         )
 
     def to_dict(self) -> dict:
-        return {
-            "id": self.id,
-            "job_type": self.job_type.value,
-            "status": self.status.value,
-            "input_key": self.input_key,
-            "output_key": self.output_key,
-            "pet_id": str(self.pet_id),
-            "image_id": str(self.image_id),
-            "attempt_count": self.attempt_count,
-            "last_locked": self.last_locked,
-            "ready_at": self.ready_at,
-            "created_at": self.created_at,
-            "updated_at": self.updated_at,
-        }
+        return asdict(self)
+
