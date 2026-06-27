@@ -1,6 +1,4 @@
-from datetime import datetime, timezone
-import uuid
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from json import dumps
 
 from src.models.status import JobStatus, JobType
