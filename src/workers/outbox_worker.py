@@ -1,8 +1,12 @@
 import logging
 from time import sleep
 
-from src.messaging.exceptions import PublisherError, PublisherInvalidPayloadError, PublisherConnectionError, \
-    PublisherConfigurationError
+from src.messaging.exceptions import (
+    PublisherConfigurationError,
+    PublisherConnectionError,
+    PublisherError,
+    PublisherInvalidPayloadError,
+)
 from src.messaging.publisher import Publisher
 from src.models.errors import ErrorCode
 from src.models.status import JobStatus
