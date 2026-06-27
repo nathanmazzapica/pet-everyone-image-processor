@@ -20,6 +20,7 @@ class Worker():
         self.processed_jobs = 0
         self.failed_jobs = 0 # for later accounting, not implemented atm
         self.MAX_ATTEMPTS = 3
+        self.IDLE_SLEEP = 1.0
         self.RETRY_DELAY = 60
 
     def run(self):
@@ -29,7 +30,7 @@ class Worker():
             job = self.repo.next_background_removal_job()
             if job is None:
                 logger.debug("No jobs to process")
-                sleep(1)
+                sleep(self.IDLE_SLEEP)
                 continue
 
             try:
