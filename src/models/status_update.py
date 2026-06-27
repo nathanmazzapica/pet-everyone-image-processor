@@ -6,7 +6,7 @@ from json import dumps
 from src.models.status import JobStatus, JobType
 
 
-@dataclass
+@dataclass(kw_only=True)
 class JobStatusUpdate:
     id: int
     event_type: str
@@ -17,12 +17,12 @@ class JobStatusUpdate:
     def to_json(self) -> str:
         return dumps(asdict(self))
 
-@dataclass
+@dataclass(kw_only=True)
 class JobSucceededUpdate(JobStatusUpdate):
     output_key: str
     event_type: str = "job_succeeded"
 
-@dataclass
+@dataclass(kw_only=True)
 class JobFailedUpdate(JobStatusUpdate):
     error_code: int
     event_type: str = "job_failed"

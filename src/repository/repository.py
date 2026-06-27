@@ -304,3 +304,42 @@ class Repository:
             raise FatalDatabaseError(
                 f"Failed to get error description for code {code}"
             ) from e
+
+
+    def get_error_code_for_job(self, job_id: int) -> Optional[int]:
+        try:
+            row = self.conn.execute(
+                "SELECT err_no FROM FailedJobs WHERE job_id = ? ORDER BY timestamp DESC LIMIT 1",
+                (job_id,),
+            ).fetchone()
+            return row["err_no"] if row is not None else None
+        except sqlite3.OperationalError as e:
+            raise FatalDatabaseError("Malformed SQL") from e
+        except sqlite3.DatabaseError as e:
+            raise FatalDatabaseError(f"Failed to get error code for job {job_id}") from e
+
+    def get_next_job_in_outbox(self) -> Optional[Job]:
+        try:
+            row = self.conn.execute(
+                "SELECT * FROM JobOutbox LIMIT 1"
+            ).fetchone()
+            if row is None:
+                return None
+            job_id = row["job_id"]
+        except sqlite3.OperationalError as e:
+            raise FatalDatabaseError("Malformed SQL") from e
+        except sqlite3.DatabaseError as e:
+            raise FatalDatabaseError("Failed to get next job from outbox") from e
+        return self.get_job_by_id(job_id)
+
+    def delete_job_from_outbox(self, job_id: int) -> bool:
+        try:
+            with self.conn:
+                cur = self.conn.execute(
+                    "DELETE FROM JobOutbox WHERE job_id = ?", (job_id,)
+                )
+                return cur.rowcount == 1
+        except sqlite3.OperationalError as e:
+            raise FatalDatabaseError("Malformed SQL") from e
+        except sqlite3.DatabaseError as e:
+            raise FatalDatabaseError(f"Failed to delete job {job_id} from outbox") from e
