@@ -9,5 +9,5 @@ wand
 python-multipart
 python-dotenv
 pyclamd
-
+redis
 starlette
