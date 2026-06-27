@@ -31,7 +31,7 @@ class OutboxWorker:
             return JobSucceededUpdate(
                 id=job.id,
                 job_type=job.job_type,
-                pet_id=job.pet_id,
+                pet_id=str(job.pet_id),
                 status=job.status,
                 output_key=job.output_key or "",
             )
@@ -39,7 +39,7 @@ class OutboxWorker:
             return JobFailedUpdate(
                 id=job.id,
                 job_type=job.job_type,
-                pet_id=job.pet_id,
+                pet_id=str(job.pet_id),
                 status=job.status,
                 error_code=error_code,
             )
@@ -47,7 +47,7 @@ class OutboxWorker:
             id=job.id,
             event_type="job_status_changed",
             job_type=job.job_type,
-            pet_id=job.pet_id,
+            pet_id=str(job.pet_id),
             status=job.status,
         )
 

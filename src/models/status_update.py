@@ -11,7 +11,7 @@ class JobStatusUpdate:
     id: int
     event_type: str
     job_type: JobType
-    pet_id: uuid.UUID
+    pet_id: str
     status: JobStatus
 
     def to_json(self) -> str:

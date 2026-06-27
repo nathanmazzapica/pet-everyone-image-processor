@@ -1,10 +1,10 @@
 from enum import Enum
 
-class JobType(Enum):
+class JobType(str, Enum):
     PREPROCESS = "PREPROCESS"
     BACKGROUND_REMOVAL = "BACKGROUND_REMOVAL"
 
-class JobStatus(Enum):
+class JobStatus(str, Enum):
     QUEUED="QUEUED"
     PROCESSING="PROCESSING"
     DONE="DONE"
