@@ -37,5 +37,8 @@ class Job:
         )
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        d = asdict(self)
+        d["pet_id"] = str(self.pet_id)
+        d["image_id"] = str(self.image_id)
+        return d
 
