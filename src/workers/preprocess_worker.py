@@ -6,7 +6,6 @@ from src.models.status import JobStatus
 from src.service.exceptions import JobFailedError, FatalServiceError
 from src.service.preprocess_service import PreprocessService
 from src.repository.repository import Repository
-from src.models.status import JobType
 from time import sleep
 
 from src.storage.storage import LocalStorage
@@ -17,12 +16,14 @@ logger = logging.getLogger(__name__)
 class Worker:
 
     def __init__(self, repo: Repository,
-                 proc: PreprocessService, retry_delay=60):
+                 proc: PreprocessService,
+                 retry_delay=60):
         self.repo = repo
         self.proc = proc
         self.processed_jobs = 0
         self.failed_jobs = 0 # for later accounting, not implemented atm
         self.MAX_ATTEMPTS = 3
+        self.IDLE_SLEEP = 1.0
         self.RETRY_DELAY = retry_delay
 
     def run(self):
@@ -32,7 +33,7 @@ class Worker:
             job = self.repo.next_preprocess_job()
             if job is None:
                 logger.debug("No jobs to process")
-                sleep(1)
+                sleep(self.IDLE_SLEEP)
                 continue
 
             try:
